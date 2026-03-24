@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Fantasy Intel - Biwenger news tracker",
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "dependencies": {}
 }
