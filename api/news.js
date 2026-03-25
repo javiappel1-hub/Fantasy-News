@@ -85,16 +85,40 @@ function detectLocale(team, league) {
   return localeMap.US; // default inglés
 }
 
+function getCompetitionName(league) {
+  const map = {
+    AR: 'Liga Profesional Argentina',
+    UY: 'fútbol uruguayo',
+    CL: 'fútbol chileno',
+    CO: 'Liga BetPlay',
+    BR: 'Brasileirao',
+    MX: 'Liga MX',
+    US: 'MLS',
+    ES: 'LaLiga',
+    GB: 'Premier League',
+    IT: 'Serie A',
+    DE: 'Bundesliga',
+    FR: 'Ligue 1',
+    PT: 'Primeira Liga',
+    NL: 'Eredivisie',
+    TR: 'Süper Lig',
+    OTHER: 'football'
+  };
+  return map[league] || 'football';
+}
+
 function buildQueries(name, team, league) {
   const locale = detectLocale(team, league);
   const teamStr = team ? ` "${team}"` : '';
+  const sport = ['AR','UY','CL','CO','MX','BR','ES','IT','FR','PT'].includes(league) ? 'fútbol' : 'football';
+  const competition = getCompetitionName(league);
 
   return [
-    { query: `"${name}"${teamStr} when:7d`,  locale, bucket: '7d' },
-    { query: `"${name}" when:14d`,            locale, bucket: '7d' },
-    { query: `"${name}"${teamStr} when:30d`,  locale, bucket: '30d' },
-    { query: `"${name}" when:60d`,            locale, bucket: '30d' },
-    { query: `"${name}" when:90d`,            locale, bucket: '365d' },
+    { query: `"${name}"${teamStr} "${competition}" when:7d`,   locale, bucket: '7d' },
+    { query: `"${name}" "${competition}" when:30d`,             locale, bucket: '7d' },
+    { query: `"${name}"${teamStr} ${sport} when:14d`,          locale, bucket: '7d' },
+    { query: `"${name}"${teamStr} "${competition}" when:60d`,  locale, bucket: '30d' },
+    { query: `"${name}" ${sport} when:90d`,                    locale, bucket: '365d' },
   ];
 }
 
