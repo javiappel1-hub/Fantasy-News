@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       try {
         const items = await fetchGoogleNews(q.query, q.lang);
         const filtered = items
-          .filter(i => isRelevant(i, name, lastName, firstName))
+          .filter(i => isRelevant(i, name, lastName, firstName, team))
           .map(i => ({ ...i, bucket: q.bucket }));
         allItems.push(...filtered);
       } catch (e) {
@@ -109,21 +109,21 @@ function parseRSS(xml) {
   return items;
 }
 
-function isRelevant(item, fullName, lastName, firstName) {
+function isRelevant(item, fullName, lastName, firstName, team) {
   const text = normalize(`${item.title} ${item.description}`);
   const normalFull = normalize(fullName);
   const normalLast = normalize(lastName);
   const normalFirst = normalize(firstName);
+  const normalTeam = normalize(team || '');
 
   // Siempre acepta si aparece el nombre completo
   if (text.includes(normalFull)) return true;
 
-  // Solo usa apellido si tiene 6+ letras Y aparece junto al nombre o equipo
-  // Evita falsos positivos como "Henry" → Thierry Henry
-  if (normalLast.length >= 6) {
-    // El apellido debe aparecer cerca del primer nombre o ser poco común
-    if (text.includes(normalFirst) && text.includes(normalLast)) return true;
-  }
+  // Apellido + equipo = válido
+  if (normalLast.length >= 4 && normalTeam && text.includes(normalLast) && text.includes(normalTeam)) return true;
+
+  // Apellido + primer nombre = válido
+  if (normalLast.length >= 4 && text.includes(normalLast) && text.includes(normalFirst)) return true;
 
   return false;
 }
