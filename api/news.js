@@ -1,6 +1,6 @@
 // api/news.js
 // Noticias reales desde Google News RSS
-// Devuelve hasta 60 resultados, priorizando recencia
+// Devuelve hasta 60 resultados y clasifica por categoría
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
 
         const cleaned = items
           .filter((item) => isRelevant(item, name))
-          .filter((item) => minutesSince(item.pubDate) <= 525600) // hasta 1 año
+          .filter((item) => minutesSince(item.pubDate) <= 525600)
           .map((item) => ({
             ...item,
             bucket: query.bucket
@@ -47,45 +47,39 @@ export default async function handler(req, res) {
       }
     }
 
-    // Deduplicar dentro de cada bucket
     for (const key of Object.keys(bucketed)) {
       bucketed[key] = dedupeByTitleAndLink(bucketed[key])
         .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate));
     }
 
-    // Mezcla priorizando recencia, pero permitiendo volumen
     let finalItems = [
       ...bucketed['1d'].slice(0, 20),
       ...bucketed['7d'].slice(0, 20),
       ...bucketed['30d'].slice(0, 20)
     ];
 
-    // Completar con 1 año si todavía falta volumen
     if (finalItems.length < 60) {
-      const usedKeys = new Set(
-        finalItems.map((item) => `${normalize(item.title)}|${normalize(item.link)}`)
+      const used = new Set(
+        finalItems.map((i) => `${normalize(i.title)}|${normalize(i.link)}`)
       );
 
       for (const item of bucketed['365d']) {
         const key = `${normalize(item.title)}|${normalize(item.link)}`;
-        if (!usedKeys.has(key)) {
+        if (!used.has(key)) {
           finalItems.push(item);
-          usedKeys.add(key);
+          used.add(key);
         }
         if (finalItems.length >= 60) break;
       }
     }
 
-    // Deduplicación final y orden final
     finalItems = dedupeByTitleAndLink(finalItems)
       .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate))
       .slice(0, 60);
 
-    const sources = unique(finalItems.map((x) => x.source).filter(Boolean)).slice(0, 8);
-    const newestMinutes = finalItems.length ? minutesSince(finalItems[0].pubDate) : null;
-
     const news = finalItems.map((item) => ({
       type: 'web',
+      category: detectCategory(item),
       source: item.source || 'Google News',
       title: item.title,
       excerpt: item.description || '',
@@ -94,242 +88,156 @@ export default async function handler(req, res) {
       minutesAgo: minutesSince(item.pubDate)
     }));
 
-    const summary = {
-      count: news.length,
-      latest: newestMinutes === null ? 'sin noticias' : timeAgo(finalItems[0].pubDate),
-      sources,
-      text: buildSummaryText(name, news.length, newestMinutes, sources)
-    };
-
     return res.status(200).json({
       player: name,
       team: team || null,
-      summary,
       news
     });
+
   } catch (e) {
     console.error('api/news error:', e);
     return res.status(500).json({ error: e.message || 'Unknown error' });
   }
 }
 
+function detectCategory(item) {
+  const text = normalize(`${item.title} ${item.description}`);
+
+  if (containsAny(text,['injury','injuries','lesion','lesión','medical','recovery','fitness']))
+    return 'injuries';
+
+  if (containsAny(text,['suspension','suspended','ban','banned','sancion','sanción','tarjetas','red card']))
+    return 'suspensions';
+
+  if (containsAny(text,['lineup','starting xi','titular','starter','bench','suplente','convocatoria']))
+    return 'lineups';
+
+  if (containsAny(text,['transfer','fichaje','loan','rumour','rumor','mercado']))
+    return 'transfers';
+
+  return 'general';
+}
+
+function containsAny(text, terms) {
+  return terms.some(t => text.includes(normalize(t)));
+}
+
 function buildQueries(name, team) {
-  const queries = [];
-  const cleanName = String(name || '').trim();
-  const cleanTeam = String(team || '').trim();
 
-  const quotedName = `"${cleanName}"`;
+  const quotedName = `"${name}"`;
 
-  const parts = cleanName.split(' ').filter(Boolean);
-  const shortName = parts.length >= 2 ? `"${parts[parts.length - 1]}"` : quotedName;
-
-  const fullNameQuery = cleanTeam
-    ? `${quotedName} "${cleanTeam}" (football OR futbol OR soccer)`
+  const base = team
+    ? `${quotedName} "${team}" (football OR futbol OR soccer)`
     : `${quotedName} (football OR futbol OR soccer)`;
 
-  const shortNameQuery = cleanTeam
-    ? `${shortName} "${cleanTeam}" (football OR futbol OR soccer)`
-    : `${shortName} (football OR futbol OR soccer)`;
-
-  queries.push({ q: `${fullNameQuery} when:1d`, bucket: '1d' });
-  queries.push({ q: `${shortNameQuery} when:1d`, bucket: '1d' });
-
-  queries.push({ q: `${fullNameQuery} when:7d`, bucket: '7d' });
-  queries.push({ q: `${shortNameQuery} when:7d`, bucket: '7d' });
-
-  queries.push({ q: `${fullNameQuery} when:30d`, bucket: '30d' });
-  queries.push({ q: `${shortNameQuery} when:30d`, bucket: '30d' });
-
-  queries.push({ q: `${fullNameQuery} when:365d`, bucket: '365d' });
-  queries.push({ q: `${shortName} when:365d`, bucket: '365d' });
-
-  return dedupeQueries(queries);
+  return [
+    {q:`${base} when:1d`, bucket:'1d'},
+    {q:`${base} when:7d`, bucket:'7d'},
+    {q:`${base} when:30d`, bucket:'30d'},
+    {q:`${base} when:365d`, bucket:'365d'}
+  ];
 }
 
-function dedupeQueries(queries) {
-  const seen = new Set();
-  const out = [];
+async function fetchGoogleNews(query){
 
-  for (const item of queries) {
-    const key = item.q.toLowerCase().trim();
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(item);
-    }
-  }
+  const url=`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es-419&gl=AR&ceid=AR:es-419`;
 
-  return out;
-}
+  const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0'}});
+  if(!r.ok) throw new Error(`Google News error ${r.status}`);
 
-async function fetchGoogleNews(query) {
-  const url =
-    `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
-    `&hl=es-419&gl=AR&ceid=AR:es-419`;
-
-  const r = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0' }
-  });
-
-  if (!r.ok) {
-    const err = await r.text();
-    throw new Error(`Google News error ${r.status}: ${err}`);
-  }
-
-  const xml = await r.text();
+  const xml=await r.text();
   return parseRSS(xml);
 }
 
-function parseRSS(xml) {
-  const items = [];
-  const matches = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+function parseRSS(xml){
 
-  for (const raw of matches) {
-    const title = decode(stripCdata(tag(raw, 'title')));
-    const link = decode(stripCdata(tag(raw, 'link')));
-    const pubDate = decode(stripCdata(tag(raw, 'pubDate')));
-    const description = cleanDescription(decode(stripCdata(tag(raw, 'description'))));
-    const source = decode(stripCdata(tag(raw, 'source')));
+  const items=[];
+  const matches=xml.match(/<item>([\s\S]*?)<\/item>/g)||[];
 
-    if (title && link) {
-      items.push({
-        title: cleanTitle(title),
-        link,
-        pubDate,
-        description,
-        source
-      });
+  for(const raw of matches){
+
+    const title=decode(stripCdata(tag(raw,'title')));
+    const link=decode(stripCdata(tag(raw,'link')));
+    const pubDate=decode(stripCdata(tag(raw,'pubDate')));
+    const description=cleanDescription(decode(stripCdata(tag(raw,'description'))));
+    const source=decode(stripCdata(tag(raw,'source')));
+
+    if(title&&link){
+      items.push({title,link,pubDate,description,source});
     }
   }
 
   return items;
 }
 
-function tag(text, tagName) {
-  const r = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i');
-  const m = text.match(r);
-  return m ? m[1] : '';
+function tag(text,tagName){
+  const r=new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`,'i');
+  const m=text.match(r);
+  return m?m[1]:'';
 }
 
-function stripCdata(text) {
-  return String(text || '')
-    .replace('<![CDATA[', '')
-    .replace(']]>', '')
-    .trim();
+function stripCdata(t){
+  return String(t||'').replace('<![CDATA[','').replace(']]>','').trim();
 }
 
-function cleanTitle(t) {
-  return String(t || '')
-    .replace(/\s*-\s*[^-]+$/, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function cleanDescription(html){
+  return String(html||'')
+    .replace(/<a\b[^>]*>.*?<\/a>/gi,' ')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .slice(0,180);
 }
 
-function cleanDescription(html) {
-  const text = String(html || '')
-    .replace(/<a\b[^>]*>.*?<\/a>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return text.length > 180 ? text.slice(0, 179).trim() + '…' : text;
+function decode(str){
+  return String(str||'')
+    .replace(/&amp;/g,'&')
+    .replace(/&lt;/g,'<')
+    .replace(/&gt;/g,'>')
+    .replace(/&quot;/g,'"')
+    .replace(/&#39;/g,"'");
 }
 
-function decode(str) {
-  return String(str || '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
-}
-
-function normalize(str) {
-  return String(str || '')
+function normalize(str){
+  return String(str||'')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w\s]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^\w\s]/g,' ')
+    .replace(/\s+/g,' ')
     .trim();
 }
 
-function isRelevant(item, name) {
-  const text = normalize(`${item.title} ${item.description} ${item.source}`);
-  const player = normalize(name);
-
-  if (!player) return false;
-  if (text.includes(player)) return true;
-
-  const parts = player.split(' ').filter(Boolean);
-  if (parts.length >= 2) {
-    let matches = 0;
-    for (const p of parts) {
-      if (p.length >= 3 && text.includes(p)) matches++;
-    }
-    return matches >= 2;
-  }
-
-  return false;
+function isRelevant(item,name){
+  const text=normalize(`${item.title} ${item.description}`);
+  const player=normalize(name);
+  return text.includes(player);
 }
 
-function dedupeByTitleAndLink(items) {
-  const seen = new Set();
-  const out = [];
+function dedupeByTitleAndLink(items){
 
-  for (const item of items) {
-    const key = `${normalize(item.title)}|${normalize(item.link)}`;
-    if (!seen.has(key)) {
+  const seen=new Set();
+  const out=[];
+
+  for(const i of items){
+    const key=`${normalize(i.title)}|${normalize(i.link)}`;
+    if(!seen.has(key)){
       seen.add(key);
-      out.push(item);
+      out.push(i);
     }
   }
 
   return out;
 }
 
-function unique(arr) {
-  return [...new Set(arr)];
+function minutesSince(dateStr){
+  const d=new Date(dateStr).getTime();
+  return Math.floor((Date.now()-d)/60000);
 }
 
-function minutesSince(dateStr) {
-  if (!dateStr) return 999999;
-
-  const d = new Date(dateStr).getTime();
-  if (Number.isNaN(d)) return 999999;
-
-  return Math.max(0, Math.floor((Date.now() - d) / 60000));
-}
-
-function timeAgo(dateStr) {
-  const mins = minutesSince(dateStr);
-
-  if (mins < 60) return `hace ${Math.max(1, mins)} min`;
-  if (mins < 1440) return `hace ${Math.floor(mins / 60)} h`;
-  if (mins < 43200) return `hace ${Math.floor(mins / 1440)} días`;
-  if (mins < 525600) return `hace ${Math.floor(mins / 43200)} meses`;
-
-  return `hace más de 1 año`;
-}
-
-function buildSummaryText(name, count, newestMinutes, sources) {
-  if (!count) {
-    return `No se encontraron noticias recientes sobre ${name}.`;
-  }
-
-  const latestText =
-    newestMinutes === null ? '' : ` Última actualización ${timeAgoFromMinutes(newestMinutes)}.`;
-
-  const sourcesText =
-    sources.length ? ` Fuentes: ${sources.join(', ')}.` : '';
-
-  return `Se encontraron ${count} noticias sobre ${name}.${latestText}${sourcesText}`;
-}
-
-function timeAgoFromMinutes(mins) {
-  if (mins < 60) return `hace ${Math.max(1, mins)} min`;
-  if (mins < 1440) return `hace ${Math.floor(mins / 60)} h`;
-  if (mins < 43200) return `hace ${Math.floor(mins / 1440)} días`;
-  return `hace ${Math.floor(mins / 43200)} meses`;
+function timeAgo(dateStr){
+  const mins=minutesSince(dateStr);
+  if(mins<60)return`hace ${mins} min`;
+  if(mins<1440)return`hace ${Math.floor(mins/60)} h`;
+  return`hace ${Math.floor(mins/1440)} días`;
 }
