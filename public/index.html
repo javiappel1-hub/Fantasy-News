@@ -46,6 +46,9 @@ header{background:var(--navy);padding:0 24px;display:flex;align-items:center;jus
 /* SIDEBAR */
 .sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:56px;height:calc(100vh - 56px);overflow:hidden}
 .sidebar-top{padding:14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-players{flex:1;overflow-y:auto;min-height:0}
+.sidebar-players::-webkit-scrollbar{width:3px}
+.sidebar-players::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .sec-label{font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-weight:600}
 
 /* DROP ZONE */
@@ -72,10 +75,6 @@ header{background:var(--navy);padding:0 24px;display:flex;align-items:center;jus
 .btn-demo:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
 
 /* SIDEBAR PLAYER LIST */
-.sidebar-players{flex:1;overflow-y:auto}
-.sidebar-players::-webkit-scrollbar{width:3px}
-.sidebar-players::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-
 .sidebar-group-label{font-family:var(--fm);font-size:8px;letter-spacing:3px;color:var(--muted2);text-transform:uppercase;padding:10px 14px 4px;font-weight:600}
 
 .player-row{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background .12s;border-left:3px solid transparent}
@@ -245,6 +244,12 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .modal-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .modal-skip{display:block;text-align:center;margin-top:12px;font-size:12px;color:var(--muted);cursor:pointer;transition:color .15s}
 .modal-skip:hover{color:var(--accent)}
+.league-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px}
+.league-opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border:1.5px solid var(--border2);border-radius:8px;cursor:pointer;transition:all .15s;font-size:18px;background:var(--surface2)}
+.league-opt span{font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-align:center;line-height:1.2}
+.league-opt:hover{border-color:var(--accent);background:var(--accent-light)}
+.league-opt.selected{border-color:var(--accent);background:var(--accent-light)}
+.league-opt.selected span{color:var(--accent)}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--navy);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 16px;font-size:12px;color:#fff;z-index:200;transform:translateY(60px);opacity:0;transition:all .25s;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,.2);font-weight:500}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-color:rgba(0,184,122,.4)}
@@ -372,15 +377,36 @@ main{display:flex;flex-direction:column;overflow:hidden}
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-icon">⚽</div>
-    <div class="modal-title">¿Cómo se llama tu equipo?</div>
-    <div class="modal-sub">Lo usaremos para personalizar tu experiencia y guardar tu equipo automáticamente.</div>
+    <div class="modal-title">Configurá tu equipo</div>
+    <div class="modal-sub">Personalizamos las noticias según tu liga.</div>
     <div class="modal-field">
       <div class="modal-label">Nombre de tu equipo</div>
-      <input class="modal-input" id="inputTeamName" placeholder="ej: Perro FC" maxlength="30" onkeydown="if(event.key==='Enter')saveTeamName()">
+      <input class="modal-input" id="inputTeamName" placeholder="ej: Los Galácticos" maxlength="30" onkeydown="if(event.key==='Enter')saveTeamName()">
     </div>
     <div class="modal-field">
       <div class="modal-label">Tu nombre (opcional)</div>
-      <input class="modal-input" id="inputUserName" placeholder="ej: Javier" maxlength="20" onkeydown="if(event.key==='Enter')saveTeamName()">
+      <input class="modal-input" id="inputUserName" placeholder="ej: Javier" maxlength="20">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">¿En qué liga jugás?</div>
+      <div class="league-grid" id="leagueGrid">
+        <div class="league-opt" data-league="AR" onclick="selectLeague(this)">🇦🇷<span>Argentina</span></div>
+        <div class="league-opt" data-league="UY" onclick="selectLeague(this)">🇺🇾<span>Uruguay</span></div>
+        <div class="league-opt" data-league="CL" onclick="selectLeague(this)">🇨🇱<span>Chile</span></div>
+        <div class="league-opt" data-league="CO" onclick="selectLeague(this)">🇨🇴<span>Colombia</span></div>
+        <div class="league-opt" data-league="BR" onclick="selectLeague(this)">🇧🇷<span>Brasil</span></div>
+        <div class="league-opt" data-league="MX" onclick="selectLeague(this)">🇲🇽<span>México</span></div>
+        <div class="league-opt" data-league="US" onclick="selectLeague(this)">🇺🇸<span>MLS</span></div>
+        <div class="league-opt" data-league="ES" onclick="selectLeague(this)">🇪🇸<span>LaLiga</span></div>
+        <div class="league-opt" data-league="GB" onclick="selectLeague(this)">🏴󠁧󠁢󠁥󠁮󠁧󠁿<span>Premier</span></div>
+        <div class="league-opt" data-league="IT" onclick="selectLeague(this)">🇮🇹<span>Serie A</span></div>
+        <div class="league-opt" data-league="DE" onclick="selectLeague(this)">🇩🇪<span>Bundesliga</span></div>
+        <div class="league-opt" data-league="FR" onclick="selectLeague(this)">🇫🇷<span>Ligue 1</span></div>
+        <div class="league-opt" data-league="PT" onclick="selectLeague(this)">🇵🇹<span>Portugal</span></div>
+        <div class="league-opt" data-league="NL" onclick="selectLeague(this)">🇳🇱<span>Eredivisie</span></div>
+        <div class="league-opt" data-league="TR" onclick="selectLeague(this)">🇹🇷<span>Turquía</span></div>
+        <div class="league-opt" data-league="OTHER" onclick="selectLeague(this)">🌍<span>Otra</span></div>
+      </div>
     </div>
     <button class="modal-btn" id="modalBtn" onclick="saveTeamName()">Guardar y continuar</button>
     <span class="modal-skip" onclick="skipTeamName()">Continuar sin guardar</span>
@@ -392,28 +418,35 @@ main{display:flex;flex-direction:column;overflow:hidden}
 <script>
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxmk8pQG-faOLVDIUtogDaxgadNcPkpouuPsMW4SJBi4pZuQb4dZYLBPBHZXE4fmf07Mw/exec';
-const S = { players:[], images:[], current:null, playerNews:{}, filter:'all', teamName:'', userName:'' };
+const S = { players:[], images:[], current:null, playerNews:{}, filter:'all', teamName:'', userName:'', league:'' };
 
 // ── LOCALSTORAGE ──────────────────────────────────────────────────────────────
 function saveToStorage(){
   localStorage.setItem('fn_teamName', S.teamName);
   localStorage.setItem('fn_userName', S.userName);
+  localStorage.setItem('fn_league', S.league);
   localStorage.setItem('fn_players', JSON.stringify(S.players));
 }
 
 function loadFromStorage(){
   S.teamName = localStorage.getItem('fn_teamName') || '';
   S.userName = localStorage.getItem('fn_userName') || '';
+  S.league   = localStorage.getItem('fn_league') || '';
   const saved = localStorage.getItem('fn_players');
-  if(saved){
-    try{ S.players = JSON.parse(saved); }catch(e){}
-  }
+  if(saved){ try{ S.players = JSON.parse(saved); }catch(e){} }
 }
 
 function clearStorage(){
   localStorage.removeItem('fn_teamName');
   localStorage.removeItem('fn_userName');
+  localStorage.removeItem('fn_league');
   localStorage.removeItem('fn_players');
+}
+
+function selectLeague(el){
+  document.querySelectorAll('.league-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  S.league = el.dataset.league;
 }
 
 // ── GOOGLE SHEETS LOG ─────────────────────────────────────────────────────────
@@ -440,9 +473,12 @@ function logToSheets(isNew=false){
 let _pendingExtract = false;
 
 function openModal(){
-  // Pre-fill if already has name
   if(S.teamName) document.getElementById('inputTeamName').value = S.teamName;
   if(S.userName) document.getElementById('inputUserName').value = S.userName;
+  if(S.league){
+    const el = document.querySelector(`.league-opt[data-league="${S.league}"]`);
+    if(el) el.classList.add('selected');
+  }
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('inputTeamName').focus(), 200);
 }
@@ -455,10 +491,11 @@ function saveTeamName(){
   const teamName = document.getElementById('inputTeamName').value.trim();
   const userName = document.getElementById('inputUserName').value.trim();
   if(!teamName){ document.getElementById('inputTeamName').focus(); return; }
+  if(!S.league){ toast('⚠️ Elegí tu liga','err'); return; }
   S.teamName = teamName;
   S.userName = userName;
   saveToStorage();
-  logToSheets(true); // nuevo usuario
+  logToSheets(true);
   closeModal();
   if(_pendingExtract){ _pendingExtract=false; doExtract(); }
   updateGreeting();
@@ -568,7 +605,8 @@ function updateGridSub(done){
 }
 
 async function fetchNews(p){
-  const r=await fetch(`${API_BASE}/api/news?name=${encodeURIComponent(p.name)}&team=${encodeURIComponent(p.team||'')}`);
+  const league = S.league ? `&league=${encodeURIComponent(S.league)}` : '';
+  const r=await fetch(`${API_BASE}/api/news?name=${encodeURIComponent(p.name)}&team=${encodeURIComponent(p.team||'')}${league}`);
   if(!r.ok) throw new Error(`HTTP ${r.status}`);
   const d=await r.json();
   return d.news||[];
