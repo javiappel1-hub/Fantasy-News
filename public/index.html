@@ -377,7 +377,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="modal-sub">Lo usaremos para personalizar tu experiencia y guardar tu equipo automáticamente.</div>
     <div class="modal-field">
       <div class="modal-label">Nombre de tu equipo</div>
-      <input class="modal-input" id="inputTeamName" placeholder="ej: Perro FC" maxlength="30" onkeydown="if(event.key==='Enter')saveTeamName()">
+      <input class="modal-input" id="inputTeamName" placeholder="ej: Los Galácticos" maxlength="30" onkeydown="if(event.key==='Enter')saveTeamName()">
     </div>
     <div class="modal-field">
       <div class="modal-label">Tu nombre (opcional)</div>
@@ -392,6 +392,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
 
 <script>
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxmk8pQG-faOLVDIUtogDaxgadNcPkpouuPsMW4SJBi4pZuQb4dZYLBPBHZXE4fmf07Mw/exec';
 const S = { players:[], images:[], current:null, playerNews:{}, filter:'all', teamName:'', userName:'' };
 
 // ── LOCALSTORAGE ──────────────────────────────────────────────────────────────
@@ -416,6 +417,26 @@ function clearStorage(){
   localStorage.removeItem('fn_players');
 }
 
+// ── GOOGLE SHEETS LOG ─────────────────────────────────────────────────────────
+function logToSheets(isNew=false){
+  try{
+    const payload = {
+      teamName: S.teamName,
+      userName: S.userName,
+      playerCount: S.players.length,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      isNew: isNew,
+      players: S.players.map(p=>p.name).join(', ')
+    };
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }catch(e){ console.warn('Sheets log failed:', e); }
+}
+
 // ── MODAL ─────────────────────────────────────────────────────────────────────
 let _pendingExtract = false;
 
@@ -437,6 +458,8 @@ function saveTeamName(){
   if(!teamName){ document.getElementById('inputTeamName').focus(); return; }
   S.teamName = teamName;
   S.userName = userName;
+  saveToStorage();
+  logToSheets(true); // nuevo usuario
   closeModal();
   if(_pendingExtract){ _pendingExtract=false; doExtract(); }
   updateGreeting();
@@ -733,10 +756,10 @@ function toast(msg,type=''){const el=document.getElementById('toast');el.textCon
 function init(){
   loadFromStorage();
   if(S.teamName && S.players.length){
-    // Returning user — load their team automatically
     updateGreeting();
     S.playerNews={};
     afterLoad();
+    logToSheets(false); // usuario que regresa
     toast(`👋 Bienvenido de vuelta${S.userName ? ', '+S.userName : ''}!`,'ok');
   }
 }
