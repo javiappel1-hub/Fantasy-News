@@ -26,7 +26,7 @@ header{border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-i
 .sec-label{font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
 .drop-zone{border:1.5px dashed var(--border2);border-radius:6px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;background:var(--card2)}
 .drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(240,192,64,.05)}
-.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.drop-zone input[type=file]{display:none}
 .drop-icon{font-size:22px;margin-bottom:4px}
 .drop-title{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:1px}
 .drop-sub{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.4}
@@ -156,7 +156,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .preview-btn:hover{background:#f5cf60}
 .preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:149;display:none;top:54px}
 .preview-overlay.open{display:block}
-.toast{position:fixed;bottom:16px;right:16px;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:9px 14px;font-size:12px;color:var(--text);z-index:200;transform:translateY(60px);opacity:0;transition:all .25s;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast{position:fixed;bottom:16px;right:16px;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:9px 14px;font-size:12px;color:var(--text);z-index:200;transform:translateY(60px);opacity:0;transition:all .25s;max-width:420px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-color:rgba(61,214,140,.3)}.toast.err{border-color:rgba(232,80,58,.3)}
 @media(max-width:700px){
@@ -177,8 +177,8 @@ main{display:flex;flex-direction:column;overflow:hidden}
 <aside class="sidebar">
   <div class="sidebar-top">
     <div class="sec-label">Importar equipo</div>
-    <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" accept="image/*" multiple onchange="onFiles(event)"/>
+    <div class="drop-zone" id="dropZone" onclick="openFilePicker()">
+      <input type="file" id="fileInput" accept="image/*" multiple onchange="onFiles(event)">
       <div class="drop-icon">📸</div>
       <div class="drop-title">SUBÍ TUS CAPTURAS</div>
       <div class="drop-sub">Fotos de tu equipo en Biwenger</div>
@@ -186,7 +186,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
     </div>
     <div class="thumbs" id="thumbs"></div>
     <button class="btn-main btn-extract" id="btnExtract" onclick="extractPlayers()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
       EXTRAER CON IA
     </button>
     <div class="or-sep">o</div>
@@ -231,7 +231,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
         </div>
       </div>
       <button class="btn-refresh" id="btnRefresh" onclick="refreshDetail()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
         ACTUALIZAR
       </button>
     </div>
@@ -261,51 +261,116 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="preview-excerpt" id="pvExcerpt"></div>
     <div class="preview-meta-row" id="pvMeta"></div>
     <a class="preview-btn" id="pvBtn" href="#" target="_blank" rel="noopener">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
       IR A LA NOTA
     </a>
   </div>
 </div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-const S = { players:[], images:[], current:null, playerNews:{}, filter:'all', visibleCounts:{} };
+const S = { players:[], images:[], current:null, playerNews:{}, filter:'all' };
 
-function onFiles(e){ Array.from(e.target.files).forEach(addImage); }
+function openFilePicker() {
+  document.getElementById('fileInput').click();
+}
+
+function onFiles(e) {
+  Array.from(e.target.files || []).forEach(addImage);
+}
+
 const dz = document.getElementById('dropZone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over')});
-dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');Array.from(e.dataTransfer.files).forEach(f=>{if(f.type.startsWith('image/'))addImage(f)})});
-function addImage(file){
-  const r=new FileReader();
-  r.onload=e=>{S.images.push({file,b64:e.target.result,name:file.name});renderThumbs()};
+dz.addEventListener('dragover', e => {
+  e.preventDefault();
+  dz.classList.add('drag-over');
+});
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  Array.from(e.dataTransfer.files || []).forEach(f => {
+    if (f.type.startsWith('image/')) addImage(f);
+  });
+});
+
+function addImage(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    S.images.push({ file, b64: e.target.result, name: file.name });
+    renderThumbs();
+  };
   r.readAsDataURL(file);
 }
-function removeImage(i){ S.images.splice(i,1); renderThumbs(); }
-function renderThumbs(){
-  document.getElementById('thumbs').innerHTML=S.images.map((img,i)=>`
-    <div class="thumb-wrap"><img src="${img.b64}"/><button class="thumb-del" onclick="removeImage(${i})">×</button></div>`).join('');
-  document.getElementById('btnExtract').style.display=S.images.length?'flex':'none';
+
+function removeImage(i) {
+  S.images.splice(i, 1);
+  renderThumbs();
 }
 
-async function extractPlayers(){
-  const btn=document.getElementById('btnExtract');
-  btn.disabled=true; btn.textContent='ANALIZANDO...'; status('ANALIZANDO...');
-  try{
-    const images=S.images.map(img=>({data:img.b64.split(',')[1],mediaType:img.file.type||'image/jpeg'}));
-    const r=await fetch(`${API_BASE}/api/extract`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({images})});
-    const d=await r.json();
-    if(!d.players?.length) throw new Error('No se detectaron jugadores');
-    S.players=d.players.map((p,i)=>({...p,id:i+1,price:p.price||'—',points:p.points||'—'}));
-    S.playerNews={};
+function renderThumbs() {
+  document.getElementById('thumbs').innerHTML = S.images.map((img, i) => `
+    <div class="thumb-wrap">
+      <img src="${img.b64}" alt="">
+      <button class="thumb-del" onclick="event.stopPropagation(); removeImage(${i})">×</button>
+    </div>
+  `).join('');
+  document.getElementById('btnExtract').style.display = S.images.length ? 'flex' : 'none';
+}
+
+async function extractPlayers() {
+  const btn = document.getElementById('btnExtract');
+  btn.disabled = true;
+  btn.textContent = 'ANALIZANDO...';
+  status('ANALIZANDO...');
+
+  try {
+    const images = S.images.map(img => ({
+      data: img.b64.split(',')[1],
+      mediaType: img.file.type || 'image/jpeg'
+    }));
+
+    const r = await fetch(`${API_BASE}/api/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images })
+    });
+
+    const d = await r.json();
+
+    if (!r.ok) {
+      throw new Error(d.error || `Error ${r.status} en /api/extract`);
+    }
+
+    if (!d.players || !d.players.length) {
+      throw new Error('La IA respondió pero no detectó jugadores');
+    }
+
+    S.players = d.players.map((p, i) => ({
+      ...p,
+      id: i + 1,
+      price: p.price || '—',
+      points: p.points || '—'
+    }));
+
+    S.playerNews = {};
     afterLoad();
-  }catch(e){ toast(`⚠️ ${e.message}`,'err'); status('ERROR'); }
-  finally{ btn.disabled=false; btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> EXTRAER CON IA`; }
+    toast(`⚽ Se detectaron ${S.players.length} jugadores`, 'ok');
+  } catch (e) {
+    toast(`⚠️ ${e.message}`, 'err');
+    status('ERROR');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+      EXTRAER CON IA
+    `;
+  }
 }
 
-function loadDemo(){
-  S.players=[
+function loadDemo() {
+  S.players = [
     {id:1,name:'Vinicius Jr.',team:'Real Madrid',position:'DEL',price:'62M',points:'128'},
     {id:2,name:'Pedri',team:'Barcelona',position:'MED',price:'44M',points:'102'},
     {id:3,name:'Ter Stegen',team:'Barcelona',position:'POR',price:'19M',points:'88'},
@@ -313,129 +378,195 @@ function loadDemo(){
     {id:5,name:'Lamine Yamal',team:'Barcelona',position:'DEL',price:'52M',points:'114'},
     {id:6,name:'Militão',team:'Real Madrid',position:'DEF',price:'27M',points:'78'},
     {id:7,name:'Cancelo',team:'Barcelona',position:'DEF',price:'22M',points:'82'},
-    {id:8,name:'Mbappé',team:'Real Madrid',position:'DEL',price:'70M',points:'135'},
+    {id:8,name:'Mbappé',team:'Real Madrid',position:'DEL',price:'70M',points:'135'}
   ];
-  S.playerNews={};
+  S.playerNews = {};
   afterLoad();
 }
 
-function afterLoad(){
-  renderSidebar(); showGrid();
-  toast('⚽ Equipo cargado — precargando noticias…','ok');
+function afterLoad() {
+  renderSidebar();
+  showGrid();
+  toast('⚽ Equipo cargado — precargando noticias…', 'ok');
   prefetchAll();
 }
 
-function prefetchAll(){
-  let done=0;
+function prefetchAll() {
+  let done = 0;
   status(`PRECARGANDO 0/${S.players.length}…`);
-  S.players.forEach(p=>{
-    fetchNews(p).then(news=>{
-      S.playerNews[p.id]=news;
+
+  S.players.forEach(p => {
+    fetchNews(p).then(news => {
+      S.playerNews[p.id] = news;
       done++;
-      const nc=document.getElementById(`nc-${p.id}`);
-      if(nc){nc.textContent=news.length;if(news.length>0)nc.classList.add('has')}
+      const nc = document.getElementById(`nc-${p.id}`);
+      if (nc) {
+        nc.textContent = news.length;
+        if (news.length > 0) nc.classList.add('has');
+      }
       updateCard(p.id, news.length);
-      if(S.current?.id===p.id){ renderDetailFeed(news); updateCounts(news); }
-      status(done<S.players.length?`PRECARGANDO ${done}/${S.players.length}…`:'✓ TODO LISTO');
-    }).catch(()=>{
-      S.playerNews[p.id]=[];
+      if (S.current?.id === p.id) {
+        renderDetailFeed(news);
+        updateCounts(news);
+      }
+      updateGridSub(done);
+    }).catch(() => {
+      S.playerNews[p.id] = [];
       done++;
-      status(done<S.players.length?`PRECARGANDO ${done}/${S.players.length}…`:'✓ LISTO');
+      updateGridSub(done);
     });
   });
 }
 
-async function fetchNews(p){
-  const r=await fetch(`${API_BASE}/api/news?name=${encodeURIComponent(p.name)}&team=${encodeURIComponent(p.team)}`);
-  if(!r.ok) throw new Error(`HTTP ${r.status}`);
-  const d=await r.json();
-  return d.news||[];
+function updateGridSub(done) {
+  const total = S.players.length;
+  const sub = document.getElementById('gridSub');
+  if (!sub) return;
+  sub.textContent = done < total
+    ? `PRECARGANDO NOTICIAS ${done}/${total}…`
+    : '✓ TODO LISTO';
+  status(done < total ? `PRECARGANDO ${done}/${total}…` : '✓ TODO LISTO');
 }
 
-function renderSidebar(){
-  const posOrder={POR:0,DEF:1,MED:2,DEL:3};
-  const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
-  document.getElementById('sidebarPlayers').innerHTML=`<div class="sidebar-players">${sorted.map(p=>`
-    <div class="player-row" id="row-${p.id}" onclick="selectPlayer(${p.id})">
-      <div class="pos-badge pos-${p.position}">${p.position}</div>
-      <div class="row-info"><div class="row-name">${esc(p.name)}</div><div class="row-team">${esc(p.team)}</div></div>
-      <div class="news-cnt" id="nc-${p.id}">…</div>
-    </div>`).join('')}</div>`;
+async function fetchNews(p) {
+  const r = await fetch(`${API_BASE}/api/news?name=${encodeURIComponent(p.name)}&team=${encodeURIComponent(p.team || '')}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const d = await r.json();
+  return d.news || [];
 }
 
-function showGrid(){
-  document.getElementById('welcomeScr').style.display='none';
+function renderSidebar() {
+  const posOrder = {POR:0, DEF:1, MED:2, DEL:3};
+  const sorted = [...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
+
+  document.getElementById('sidebarPlayers').innerHTML = `
+    <div class="sidebar-players">
+      ${sorted.map(p => `
+        <div class="player-row" id="row-${p.id}" onclick="selectPlayer(${p.id})">
+          <div class="pos-badge pos-${p.position}">${esc(p.position)}</div>
+          <div class="row-info">
+            <div class="row-name">${esc(p.name)}</div>
+            <div class="row-team">${esc(p.team || '')}</div>
+          </div>
+          <div class="news-cnt" id="nc-${p.id}">…</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function showGrid() {
+  document.getElementById('welcomeScr').style.display = 'none';
   document.getElementById('detailScr').classList.remove('visible');
-  document.getElementById('gridScr').style.display='block';
-  document.querySelectorAll('.player-row').forEach(r=>r.classList.remove('active'));
-  S.current=null;
-  document.getElementById('gridBadge').textContent=`${S.players.length} JUGADORES`;
-  const posOrder={POR:0,DEF:1,MED:2,DEL:3};
-  const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
-  document.getElementById('playerCards').innerHTML=sorted.map(p=>{
-    const news=S.playerNews[p.id];
-    const loaded=news!==undefined;
-    return`<div class="player-card pc-${p.position}" id="card-${p.id}" onclick="selectPlayer(${p.id})">
-      <div class="card-pos">${p.position} · ${esc(p.team)}</div>
-      <div class="card-name">${esc(p.name)}</div>
-      <div class="card-stats">
-        ${p.price!=='—'?`<span class="card-stat cs-price">💰 ${esc(p.price)}</span>`:''}
-        ${p.points!=='—'?`<span class="card-stat cs-pts">⚡ ${esc(p.points)}</span>`:''}
+  document.getElementById('gridScr').style.display = 'block';
+  document.querySelectorAll('.player-row').forEach(r => r.classList.remove('active'));
+  S.current = null;
+  document.getElementById('gridBadge').textContent = `${S.players.length} JUGADORES`;
+
+  const posOrder = {POR:0, DEF:1, MED:2, DEL:3};
+  const sorted = [...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
+
+  document.getElementById('playerCards').innerHTML = sorted.map(p => {
+    const news = S.playerNews[p.id];
+    const loaded = news !== undefined;
+
+    return `
+      <div class="player-card pc-${p.position}" id="card-${p.id}" onclick="selectPlayer(${p.id})">
+        <div class="card-pos">${esc(p.position)} · ${esc(p.team || '')}</div>
+        <div class="card-name">${esc(p.name)}</div>
+        <div class="card-stats">
+          ${p.price !== '—' ? `<span class="card-stat cs-price">💰 ${esc(p.price)}</span>` : ''}
+          ${p.points !== '—' ? `<span class="card-stat cs-pts">⚡ ${esc(p.points)}</span>` : ''}
+        </div>
+        ${loaded
+          ? (news.length > 0 ? `<div class="card-badge">📰 ${news.length}</div>` : `<div class="card-arrow">→</div>`)
+          : `<div class="card-loading"></div>`
+        }
       </div>
-      ${loaded
-        ? (news.length>0?`<div class="card-badge">📰 ${news.length}</div>`:`<div class="card-arrow">→</div>`)
-        : `<div class="card-loading"></div>`}
-    </div>`;
+    `;
   }).join('');
 }
 
-function updateCard(pid, count){
-  const card=document.getElementById(`card-${pid}`);
-  if(!card) return;
-  const spinner=card.querySelector('.card-loading');
-  const arrow=card.querySelector('.card-arrow');
-  if(spinner) spinner.outerHTML=count>0?`<div class="card-badge">📰 ${count}</div>`:`<div class="card-arrow">→</div>`;
-  if(arrow && count>0) arrow.outerHTML=`<div class="card-badge">📰 ${count}</div>`;
+function updateCard(pid, count) {
+  const card = document.getElementById(`card-${pid}`);
+  if (!card) return;
+
+  const spinner = card.querySelector('.card-loading');
+  const arrow = card.querySelector('.card-arrow');
+
+  if (spinner) {
+    spinner.outerHTML = count > 0
+      ? `<div class="card-badge">📰 ${count}</div>`
+      : `<div class="card-arrow">→</div>`;
+  }
+
+  if (arrow && count > 0) {
+    arrow.outerHTML = `<div class="card-badge">📰 ${count}</div>`;
+  }
 }
 
-async function selectPlayer(pid){
-  const p=S.players.find(x=>x.id===pid);
-  if(!p) return;
-  document.querySelectorAll('.player-row').forEach(r=>r.classList.remove('active'));
-  document.getElementById(`row-${pid}`)?.classList.add('active');
-  document.getElementById('gridScr').style.display='none';
-  document.getElementById('welcomeScr').style.display='none';
-  document.getElementById('detailScr').classList.add('visible');
-  document.getElementById('dName').textContent=p.name;
-  document.getElementById('dTeam').textContent=p.team;
-  const pe=document.getElementById('dPrice'),pte=document.getElementById('dPts');
-  if(p.price!=='—'){pe.textContent=`💰 ${p.price}`;pe.style.display=''}else pe.style.display='none';
-  if(p.points!=='—'){pte.textContent=`⚡ ${p.points} pts`;pte.style.display=''}else pte.style.display='none';
-  const dp=document.getElementById('dPos');dp.textContent=p.position;dp.className=`detail-pos pos-${p.position}`;
-  S.current=p; S.filter='all'; setFilterUI();
+async function selectPlayer(pid) {
+  const p = S.players.find(x => x.id === pid);
+  if (!p) return;
 
-  if(S.playerNews[pid]!==undefined){
+  document.querySelectorAll('.player-row').forEach(r => r.classList.remove('active'));
+  document.getElementById(`row-${pid}`)?.classList.add('active');
+
+  document.getElementById('gridScr').style.display = 'none';
+  document.getElementById('welcomeScr').style.display = 'none';
+  document.getElementById('detailScr').classList.add('visible');
+
+  document.getElementById('dName').textContent = p.name;
+  document.getElementById('dTeam').textContent = p.team || '—';
+
+  const pe = document.getElementById('dPrice');
+  const pte = document.getElementById('dPts');
+
+  if (p.price !== '—') {
+    pe.textContent = `💰 ${p.price}`;
+    pe.style.display = '';
+  } else {
+    pe.style.display = 'none';
+  }
+
+  if (p.points !== '—') {
+    pte.textContent = `⚡ ${p.points} pts`;
+    pte.style.display = '';
+  } else {
+    pte.style.display = 'none';
+  }
+
+  const dp = document.getElementById('dPos');
+  dp.textContent = p.position;
+  dp.className = `detail-pos pos-${p.position}`;
+
+  S.current = p;
+  S.filter = 'all';
+  setFilterUI();
+
+  if (S.playerNews[pid] !== undefined) {
     renderDetailFeed(S.playerNews[pid]);
     updateCounts(S.playerNews[pid]);
     status(`${S.playerNews[pid].length} NOTICIAS`);
   } else {
-    document.getElementById('detailFeed').innerHTML=`<div class="loader-wrap"><div class="loader"></div><div class="loader-txt">CARGANDO…</div></div>`;
+    document.getElementById('detailFeed').innerHTML = `<div class="loader-wrap"><div class="loader"></div><div class="loader-txt">CARGANDO…</div></div>`;
     status('CARGANDO...');
-    const news=await fetchNews(p).catch(()=>[]);
-    S.playerNews[pid]=news;
-    renderDetailFeed(news); updateCounts(news);
+    const news = await fetchNews(p).catch(() => []);
+    S.playerNews[pid] = news;
+    renderDetailFeed(news);
+    updateCounts(news);
     status(`${news.length} NOTICIAS`);
   }
 }
 
-async function refreshDetail(){
-  if(!S.current) return;
+async function refreshDetail() {
+  if (!S.current) return;
   delete S.playerNews[S.current.id];
   await selectPlayer(S.current.id);
 }
 
-function renderDetailFeed(all){
-  const feed=document.getElementById('detailFeed');
+function renderDetailFeed(all) {
+  const feed = document.getElementById('detailFeed');
 
   const items =
     S.filter === 'all'
@@ -444,133 +575,160 @@ function renderDetailFeed(all){
         ? all
         : all.filter(n => (n.category || 'general') === S.filter);
 
-  if(!items.length){
-    feed.innerHTML=`<div class="no-news"><div class="no-news-i">📭</div><div class="no-news-t">Sin noticias</div></div>`;
+  if (!items.length) {
+    feed.innerHTML = `<div class="no-news"><div class="no-news-i">📭</div><div class="no-news-t">Sin noticias</div></div>`;
     return;
   }
 
-  const hoy=[],ayer=[],ant=[];
-  items.forEach(n=>{
-    const m=n.minutesAgo||9999;
-    if(m<1440) hoy.push(n);
-    else if(m<2880) ayer.push(n);
+  const hoy = [], ayer = [], ant = [];
+  items.forEach(n => {
+    const m = n.minutesAgo || 999999;
+    if (m < 1440) hoy.push(n);
+    else if (m < 2880) ayer.push(n);
     else ant.push(n);
   });
 
-  const groups=[];
-  if(hoy.length)groups.push({label:'HOY',items:hoy});
-  if(ayer.length)groups.push({label:'AYER',items:ayer});
-  if(ant.length)groups.push({label:'ESTA SEMANA',items:ant});
-  if(!groups.length)groups.push({label:'RECIENTES',items});
+  const groups = [];
+  if (hoy.length) groups.push({label:'HOY', items:hoy});
+  if (ayer.length) groups.push({label:'AYER', items:ayer});
+  if (ant.length) groups.push({label:'ESTA SEMANA', items:ant});
+  if (!groups.length) groups.push({label:'RECIENTES', items});
 
-  feed.innerHTML=groups.map(({label,items:gi})=>
+  feed.innerHTML = groups.map(({label, items:gi}) =>
     `<div class="date-sep">${label}</div>${gi.map((n,i)=>newsItemHTML(n,i)).join('')}`
   ).join('');
 }
 
-function getCategoryIcon(cat){
-  if(cat==='injuries') return '🤕';
-  if(cat==='suspensions') return '🟥';
-  if(cat==='lineups') return '📋';
-  if(cat==='transfers') return '🔄';
+function getCategoryIcon(cat) {
+  if (cat === 'injuries') return '🤕';
+  if (cat === 'suspensions') return '🟥';
+  if (cat === 'lineups') return '📋';
+  if (cat === 'transfers') return '🔄';
   return '🌐';
 }
 
-function getCategoryLabel(cat){
-  if(cat==='injuries') return 'Injuries';
-  if(cat==='suspensions') return 'Suspensions';
-  if(cat==='lineups') return 'Lineups';
-  if(cat==='transfers') return 'Transfers';
+function getCategoryLabel(cat) {
+  if (cat === 'injuries') return 'Injuries';
+  if (cat === 'suspensions') return 'Suspensions';
+  if (cat === 'lineups') return 'Lineups';
+  if (cat === 'transfers') return 'Transfers';
   return 'General';
 }
 
-function newsItemHTML(n,i){
-  const cat=n.category||'general';
-  const icon=getCategoryIcon(cat);
-  const src=n.source||'Google News';
-  const url=n.url||`https://news.google.com/search?q=${encodeURIComponent((n.source||'')+' '+n.title)}&hl=es`;
-  const data=encodeURIComponent(JSON.stringify({
-    category:cat,
-    source:src,
-    title:n.title,
-    excerpt:n.excerpt||'',
-    time:n.time||'',
+function newsItemHTML(n, i) {
+  const cat = n.category || 'general';
+  const icon = getCategoryIcon(cat);
+  const src = n.source || 'Google News';
+  const url = n.url || `https://news.google.com/search?q=${encodeURIComponent((n.source || '') + ' ' + n.title)}&hl=es`;
+  const data = encodeURIComponent(JSON.stringify({
+    category: cat,
+    source: src,
+    title: n.title,
+    excerpt: n.excerpt || '',
+    time: n.time || '',
     url
   }));
 
-  return`<div class="news-item" onclick="openPreview('${data}')" style="animation-delay:${i*20}ms">
-    <div class="src-icon web">${icon}</div>
-    <div class="news-body">
-      <div class="news-meta">
-        <span class="src-name web">${esc(src)}</span>
-        <span class="dot">·</span>
-        <span class="news-time">${esc(n.time)}</span>
+  return `
+    <div class="news-item" onclick="openPreview('${data}')" style="animation-delay:${i * 20}ms">
+      <div class="src-icon web">${icon}</div>
+      <div class="news-body">
+        <div class="news-meta">
+          <span class="src-name web">${esc(src)}</span>
+          <span class="dot">·</span>
+          <span class="news-time">${esc(n.time || '')}</span>
+        </div>
+        <div class="news-title">${esc(n.title || '')}</div>
+        ${n.excerpt ? `<div class="news-exc">${esc(n.excerpt)}</div>` : ''}
       </div>
-      <div class="news-title">${esc(n.title)}</div>
-      ${n.excerpt?`<div class="news-exc">${esc(n.excerpt)}</div>`:''}
     </div>
-  </div>`;
+  `;
 }
 
-function openPreview(encoded){
-  const n=JSON.parse(decodeURIComponent(encoded));
-  const cat=n.category||'general';
+function openPreview(encoded) {
+  const n = JSON.parse(decodeURIComponent(encoded));
+  const cat = n.category || 'general';
 
-  document.getElementById('pvSrc').textContent=n.source;
-  document.getElementById('pvTitle').textContent=n.title;
-  document.getElementById('pvExcerpt').textContent=n.excerpt||'Sin descripción disponible.';
-  document.getElementById('pvMeta').innerHTML=`
+  document.getElementById('pvSrc').textContent = n.source || '';
+  document.getElementById('pvTitle').textContent = n.title || '';
+  document.getElementById('pvExcerpt').textContent = n.excerpt || 'Sin descripción disponible.';
+  document.getElementById('pvMeta').innerHTML = `
     <span class="preview-chip">🌐 Web</span>
     <span class="preview-chip">${getCategoryIcon(cat)} ${getCategoryLabel(cat)}</span>
-    <span class="preview-chip">⏱ ${n.time}</span>`;
-  const btn=document.getElementById('pvBtn');
-  btn.href=n.url;
-  btn.className='preview-btn';
-  btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>IR A LA NOTA`;
+    <span class="preview-chip">⏱ ${esc(n.time || '')}</span>
+  `;
 
+  const btn = document.getElementById('pvBtn');
+  btn.href = n.url || '#';
+  btn.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+    IR A LA NOTA
+  `;
+
+  document.getElementById('previewDrawer').
   document.getElementById('previewDrawer').classList.add('open');
-  document.getElementById('previewOverlay').classList.add('open');
+document.getElementById('previewOverlay').classList.add('open');
 }
 
-function closePreview(){
+function closePreview() {
   document.getElementById('previewDrawer').classList.remove('open');
   document.getElementById('previewOverlay').classList.remove('open');
 }
 
-function updateCounts(n){
-  document.getElementById('cAll').textContent=n.length;
-  document.getElementById('cWeb').textContent=n.length;
-  document.getElementById('cInj').textContent=n.filter(x=>(x.category||'general')==='injuries').length;
-  document.getElementById('cSus').textContent=n.filter(x=>(x.category||'general')==='suspensions').length;
-  document.getElementById('cLin').textContent=n.filter(x=>(x.category||'general')==='lineups').length;
-  document.getElementById('cTrf').textContent=n.filter(x=>(x.category||'general')==='transfers').length;
+function updateCounts(n) {
+  document.getElementById('cAll').textContent = n.length;
+  document.getElementById('cWeb').textContent = n.length;
+  document.getElementById('cInj').textContent = n.filter(x => (x.category || 'general') === 'injuries').length;
+  document.getElementById('cSus').textContent = n.filter(x => (x.category || 'general') === 'suspensions').length;
+  document.getElementById('cLin').textContent = n.filter(x => (x.category || 'general') === 'lineups').length;
+  document.getElementById('cTrf').textContent = n.filter(x => (x.category || 'general') === 'transfers').length;
 }
 
-function setFilter(f){
-  S.filter=f;
+function setFilter(f) {
+  S.filter = f;
   setFilterUI();
-  if(S.current&&S.playerNews[S.current.id]) renderDetailFeed(S.playerNews[S.current.id]);
+  if (S.current && S.playerNews[S.current.id]) {
+    renderDetailFeed(S.playerNews[S.current.id]);
+  }
 }
 
-function setFilterUI(){
-  const ids=['tabAll','tabWeb','tabInj','tabSus','tabLin','tabTrf'];
-  ids.forEach(id=>document.getElementById(id)?.classList.remove('active'));
+function setFilterUI() {
+  const ids = ['tabAll', 'tabWeb', 'tabInj', 'tabSus', 'tabLin', 'tabTrf'];
+  ids.forEach(id => document.getElementById(id)?.classList.remove('active'));
 
-  const map={
-    all:'tabAll',
-    web:'tabWeb',
-    injuries:'tabInj',
-    suspensions:'tabSus',
-    lineups:'tabLin',
-    transfers:'tabTrf'
+  const map = {
+    all: 'tabAll',
+    web: 'tabWeb',
+    injuries: 'tabInj',
+    suspensions: 'tabSus',
+    lineups: 'tabLin',
+    transfers: 'tabTrf'
   };
 
-  document.getElementById(map[S.filter]||'tabAll')?.classList.add('active');
+  document.getElementById(map[S.filter] || 'tabAll')?.classList.add('active');
 }
 
-function status(t){document.getElementById('hStatus').textContent=t}
-function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-let tt;function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className=`toast show ${type}`;clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),3500)}
+function status(t) {
+  document.getElementById('hStatus').textContent = t;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+let tt;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(tt);
+  tt = setTimeout(() => el.classList.remove('show'), 4500);
+}
 </script>
 </body>
 </html>
