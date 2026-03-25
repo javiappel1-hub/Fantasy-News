@@ -130,29 +130,21 @@ main{display:flex;flex-direction:column;overflow:hidden}
 @keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 .news-item{animation:fadeUp .3s ease forwards;opacity:0}
 .src-icon{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
-.src-icon.tw{background:rgba(29,161,242,.1);border:1px solid rgba(29,161,242,.2)}
 .src-icon.web{background:rgba(240,192,64,.07);border:1px solid rgba(240,192,64,.15)}
 .news-body{flex:1;min-width:0}
 .news-meta{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}
 .src-name{font-family:var(--fm);font-size:9px;font-weight:500;letter-spacing:1px;text-transform:uppercase}
-.src-name.tw{color:#1da1f2}.src-name.web{color:var(--accent)}
+.src-name.web{color:var(--accent)}
 .news-time{font-family:var(--fm);font-size:9px;color:var(--muted)}
 .dot{color:var(--muted);font-size:6px}
 .news-title{font-size:13px;font-weight:500;line-height:1.5;color:var(--text);margin-bottom:4px}
 .news-exc{font-size:11px;color:var(--muted2);line-height:1.6}
-/* SUBGROUPS */
-.fps-subgroup{margin-bottom:4px}
-.fps-sublabel{font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:8px 0 4px;display:flex;align-items:center;gap:6px}
-.btn-ver-mas{background:transparent;border:1px solid var(--border2);color:var(--muted2);padding:5px 12px;font-family:var(--fd);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:3px;margin:4px 0 10px;transition:all .15s;display:block}
-.btn-ver-mas:hover{border-color:var(--accent);color:var(--accent)}
-/* PREVIEW DRAWER */
 .preview-drawer{position:fixed;right:0;top:54px;height:calc(100vh - 54px);width:360px;background:var(--card);border-left:1px solid var(--border2);z-index:150;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 32px rgba(0,0,0,.4)}
 .preview-drawer.open{transform:translateX(0)}
 .preview-top{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-shrink:0}
 .preview-close{background:transparent;border:1px solid var(--border2);color:var(--muted2);width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
 .preview-close:hover{border-color:var(--accent2);color:var(--accent2)}
-.preview-src{font-family:var(--fm);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
-.preview-src.tw{color:#1da1f2}.preview-src.web{color:var(--accent)}
+.preview-src{font-family:var(--fm);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;color:var(--accent)}
 .preview-title{font-family:var(--fd);font-size:18px;font-weight:700;line-height:1.3;color:var(--text)}
 .preview-body{flex:1;overflow-y:auto;padding:16px}
 .preview-body::-webkit-scrollbar{width:3px}
@@ -162,7 +154,6 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .preview-chip{font-family:var(--fm);font-size:10px;padding:3px 8px;border-radius:3px;background:var(--card2);border:1px solid var(--border2);color:var(--muted2)}
 .preview-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#0d0f14;border:none;padding:12px;font-family:var(--fd);font-size:15px;font-weight:700;letter-spacing:2px;cursor:pointer;border-radius:5px;width:100%;transition:all .15s;text-decoration:none}
 .preview-btn:hover{background:#f5cf60}
-.preview-btn.tw-btn{background:#1da1f2;color:#fff}
 .preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:149;display:none;top:54px}
 .preview-overlay.open{display:block}
 .toast{position:fixed;bottom:16px;right:16px;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:9px 14px;font-size:12px;color:var(--text);z-index:200;transform:translateY(60px);opacity:0;transition:all .25s;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -247,14 +238,16 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="filter-bar">
       <div class="ftab active" id="tabAll" onclick="setFilter('all')">TODO <span class="tcnt" id="cAll">0</span></div>
       <div class="ftab" id="tabWeb" onclick="setFilter('web')">🌐 WEB <span class="tcnt" id="cWeb">0</span></div>
-      <div class="ftab" id="tabTw" onclick="setFilter('twitter')">𝕏 TWEETS <span class="tcnt" id="cTw">0</span></div>
+      <div class="ftab" id="tabInj" onclick="setFilter('injuries')">🤕 INJURIES <span class="tcnt" id="cInj">0</span></div>
+      <div class="ftab" id="tabSus" onclick="setFilter('suspensions')">🟥 SUSPENSIONS <span class="tcnt" id="cSus">0</span></div>
+      <div class="ftab" id="tabLin" onclick="setFilter('lineups')">📋 LINEUPS <span class="tcnt" id="cLin">0</span></div>
+      <div class="ftab" id="tabTrf" onclick="setFilter('transfers')">🔄 TRANSFERS <span class="tcnt" id="cTrf">0</span></div>
     </div>
     <div class="news-feed" id="detailFeed"></div>
   </div>
 </main>
 </div>
 
-<!-- Preview drawer -->
 <div class="preview-overlay" id="previewOverlay" onclick="closePreview()"></div>
 <div class="preview-drawer" id="previewDrawer">
   <div class="preview-top">
@@ -276,13 +269,9 @@ main{display:flex;flex-direction:column;overflow:hidden}
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG ─────────────────────────────────────────────────────────────────────
-// En producción (Vercel) usa /api/news. En local apunta a localhost:3000
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-
 const S = { players:[], images:[], current:null, playerNews:{}, filter:'all', visibleCounts:{} };
 
-// ── FILES ──────────────────────────────────────────────────────────────────────
 function onFiles(e){ Array.from(e.target.files).forEach(addImage); }
 const dz = document.getElementById('dropZone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over')});
@@ -300,7 +289,6 @@ function renderThumbs(){
   document.getElementById('btnExtract').style.display=S.images.length?'flex':'none';
 }
 
-// ── EXTRACT ────────────────────────────────────────────────────────────────────
 async function extractPlayers(){
   const btn=document.getElementById('btnExtract');
   btn.disabled=true; btn.textContent='ANALIZANDO...'; status('ANALIZANDO...');
@@ -316,7 +304,6 @@ async function extractPlayers(){
   finally{ btn.disabled=false; btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> EXTRAER CON IA`; }
 }
 
-// ── DEMO ───────────────────────────────────────────────────────────────────────
 function loadDemo(){
   S.players=[
     {id:1,name:'Vinicius Jr.',team:'Real Madrid',position:'DEL',price:'62M',points:'128'},
@@ -338,7 +325,6 @@ function afterLoad(){
   prefetchAll();
 }
 
-// ── PREFETCH ───────────────────────────────────────────────────────────────────
 function prefetchAll(){
   let done=0;
   status(`PRECARGANDO 0/${S.players.length}…`);
@@ -346,12 +332,9 @@ function prefetchAll(){
     fetchNews(p).then(news=>{
       S.playerNews[p.id]=news;
       done++;
-      // Update sidebar badge
       const nc=document.getElementById(`nc-${p.id}`);
       if(nc){nc.textContent=news.length;if(news.length>0)nc.classList.add('has')}
-      // Update card
       updateCard(p.id, news.length);
-      // If player detail is open, render immediately
       if(S.current?.id===p.id){ renderDetailFeed(news); updateCounts(news); }
       status(done<S.players.length?`PRECARGANDO ${done}/${S.players.length}…`:'✓ TODO LISTO');
     }).catch(()=>{
@@ -362,7 +345,6 @@ function prefetchAll(){
   });
 }
 
-// ── FETCH NEWS FROM BACKEND ────────────────────────────────────────────────────
 async function fetchNews(p){
   const r=await fetch(`${API_BASE}/api/news?name=${encodeURIComponent(p.name)}&team=${encodeURIComponent(p.team)}`);
   if(!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -370,7 +352,6 @@ async function fetchNews(p){
   return d.news||[];
 }
 
-// ── SIDEBAR ────────────────────────────────────────────────────────────────────
 function renderSidebar(){
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};
   const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
@@ -382,7 +363,6 @@ function renderSidebar(){
     </div>`).join('')}</div>`;
 }
 
-// ── GRID ───────────────────────────────────────────────────────────────────────
 function showGrid(){
   document.getElementById('welcomeScr').style.display='none';
   document.getElementById('detailScr').classList.remove('visible');
@@ -412,14 +392,12 @@ function showGrid(){
 function updateCard(pid, count){
   const card=document.getElementById(`card-${pid}`);
   if(!card) return;
-  // Replace spinner with badge
   const spinner=card.querySelector('.card-loading');
   const arrow=card.querySelector('.card-arrow');
   if(spinner) spinner.outerHTML=count>0?`<div class="card-badge">📰 ${count}</div>`:`<div class="card-arrow">→</div>`;
   if(arrow && count>0) arrow.outerHTML=`<div class="card-badge">📰 ${count}</div>`;
 }
 
-// ── SELECT PLAYER ──────────────────────────────────────────────────────────────
 async function selectPlayer(pid){
   const p=S.players.find(x=>x.id===pid);
   if(!p) return;
@@ -434,15 +412,13 @@ async function selectPlayer(pid){
   if(p.price!=='—'){pe.textContent=`💰 ${p.price}`;pe.style.display=''}else pe.style.display='none';
   if(p.points!=='—'){pte.textContent=`⚡ ${p.points} pts`;pte.style.display=''}else pte.style.display='none';
   const dp=document.getElementById('dPos');dp.textContent=p.position;dp.className=`detail-pos pos-${p.position}`;
-  S.current=p; S.filter='all'; setFilterUI('all');
+  S.current=p; S.filter='all'; setFilterUI();
 
   if(S.playerNews[pid]!==undefined){
-    // Instant — already cached
     renderDetailFeed(S.playerNews[pid]);
     updateCounts(S.playerNews[pid]);
     status(`${S.playerNews[pid].length} NOTICIAS`);
   } else {
-    // Still fetching — show loader, wait
     document.getElementById('detailFeed').innerHTML=`<div class="loader-wrap"><div class="loader"></div><div class="loader-txt">CARGANDO…</div></div>`;
     status('CARGANDO...');
     const news=await fetchNews(p).catch(()=>[]);
@@ -458,34 +434,78 @@ async function refreshDetail(){
   await selectPlayer(S.current.id);
 }
 
-// ── RENDER FEED ────────────────────────────────────────────────────────────────
 function renderDetailFeed(all){
   const feed=document.getElementById('detailFeed');
-  const items=S.filter==='all'?all:all.filter(n=>n.type===S.filter);
-  if(!items.length){feed.innerHTML=`<div class="no-news"><div class="no-news-i">📭</div><div class="no-news-t">Sin noticias</div></div>`;return;}
+
+  const items =
+    S.filter === 'all'
+      ? all
+      : S.filter === 'web'
+        ? all
+        : all.filter(n => (n.category || 'general') === S.filter);
+
+  if(!items.length){
+    feed.innerHTML=`<div class="no-news"><div class="no-news-i">📭</div><div class="no-news-t">Sin noticias</div></div>`;
+    return;
+  }
+
   const hoy=[],ayer=[],ant=[];
-  items.forEach(n=>{const m=n.minutesAgo||9999;if(m<1440)hoy.push(n);else if(m<2880)ayer.push(n);else ant.push(n);});
+  items.forEach(n=>{
+    const m=n.minutesAgo||9999;
+    if(m<1440) hoy.push(n);
+    else if(m<2880) ayer.push(n);
+    else ant.push(n);
+  });
+
   const groups=[];
   if(hoy.length)groups.push({label:'HOY',items:hoy});
   if(ayer.length)groups.push({label:'AYER',items:ayer});
   if(ant.length)groups.push({label:'ESTA SEMANA',items:ant});
   if(!groups.length)groups.push({label:'RECIENTES',items});
+
   feed.innerHTML=groups.map(({label,items:gi})=>
     `<div class="date-sep">${label}</div>${gi.map((n,i)=>newsItemHTML(n,i)).join('')}`
   ).join('');
 }
 
+function getCategoryIcon(cat){
+  if(cat==='injuries') return '🤕';
+  if(cat==='suspensions') return '🟥';
+  if(cat==='lineups') return '📋';
+  if(cat==='transfers') return '🔄';
+  return '🌐';
+}
+
+function getCategoryLabel(cat){
+  if(cat==='injuries') return 'Injuries';
+  if(cat==='suspensions') return 'Suspensions';
+  if(cat==='lineups') return 'Lineups';
+  if(cat==='transfers') return 'Transfers';
+  return 'General';
+}
+
 function newsItemHTML(n,i){
-  const tw=n.type==='twitter',tc=tw?'tw':'web',icon=tw?'𝕏':'🌐';
-  const src=tw?(n.handle||n.source):n.source;
-  const url=n.url||(tw
-    ?`https://x.com/search?q=${encodeURIComponent(n.title)}&f=live`
-    :`https://news.google.com/search?q=${encodeURIComponent((n.source||'')+' '+n.title)}&hl=es`);
-  const data=encodeURIComponent(JSON.stringify({type:n.type,source:src,title:n.title,excerpt:n.excerpt||'',time:n.time||'',url}));
+  const cat=n.category||'general';
+  const icon=getCategoryIcon(cat);
+  const src=n.source||'Google News';
+  const url=n.url||`https://news.google.com/search?q=${encodeURIComponent((n.source||'')+' '+n.title)}&hl=es`;
+  const data=encodeURIComponent(JSON.stringify({
+    category:cat,
+    source:src,
+    title:n.title,
+    excerpt:n.excerpt||'',
+    time:n.time||'',
+    url
+  }));
+
   return`<div class="news-item" onclick="openPreview('${data}')" style="animation-delay:${i*20}ms">
-    <div class="src-icon ${tc}">${icon}</div>
+    <div class="src-icon web">${icon}</div>
     <div class="news-body">
-      <div class="news-meta"><span class="src-name ${tc}">${esc(src)}</span><span class="dot">·</span><span class="news-time">${esc(n.time)}</span></div>
+      <div class="news-meta">
+        <span class="src-name web">${esc(src)}</span>
+        <span class="dot">·</span>
+        <span class="news-time">${esc(n.time)}</span>
+      </div>
       <div class="news-title">${esc(n.title)}</div>
       ${n.excerpt?`<div class="news-exc">${esc(n.excerpt)}</div>`:''}
     </div>
@@ -494,17 +514,20 @@ function newsItemHTML(n,i){
 
 function openPreview(encoded){
   const n=JSON.parse(decodeURIComponent(encoded));
-  const tw=n.type==='twitter';
+  const cat=n.category||'general';
+
   document.getElementById('pvSrc').textContent=n.source;
-  document.getElementById('pvSrc').className=`preview-src ${tw?'tw':'web'}`;
   document.getElementById('pvTitle').textContent=n.title;
   document.getElementById('pvExcerpt').textContent=n.excerpt||'Sin descripción disponible.';
   document.getElementById('pvMeta').innerHTML=`
-    <span class="preview-chip">${tw?'𝕏 Twitter':'🌐 Web'}</span>
+    <span class="preview-chip">🌐 Web</span>
+    <span class="preview-chip">${getCategoryIcon(cat)} ${getCategoryLabel(cat)}</span>
     <span class="preview-chip">⏱ ${n.time}</span>`;
   const btn=document.getElementById('pvBtn');
-  btn.href=n.url; btn.className=`preview-btn${tw?' tw-btn':''}`;
-  btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>${tw?'IR AL TWEET':'IR A LA NOTA'}`;
+  btn.href=n.url;
+  btn.className='preview-btn';
+  btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>IR A LA NOTA`;
+
   document.getElementById('previewDrawer').classList.add('open');
   document.getElementById('previewOverlay').classList.add('open');
 }
@@ -516,11 +539,35 @@ function closePreview(){
 
 function updateCounts(n){
   document.getElementById('cAll').textContent=n.length;
-  document.getElementById('cWeb').textContent=n.filter(x=>x.type==='web').length;
-  document.getElementById('cTw').textContent=n.filter(x=>x.type==='twitter').length;
+  document.getElementById('cWeb').textContent=n.length;
+  document.getElementById('cInj').textContent=n.filter(x=>(x.category||'general')==='injuries').length;
+  document.getElementById('cSus').textContent=n.filter(x=>(x.category||'general')==='suspensions').length;
+  document.getElementById('cLin').textContent=n.filter(x=>(x.category||'general')==='lineups').length;
+  document.getElementById('cTrf').textContent=n.filter(x=>(x.category||'general')==='transfers').length;
 }
-function setFilter(f){S.filter=f;setFilterUI(f);if(S.current&&S.playerNews[S.current.id])renderDetailFeed(S.playerNews[S.current.id]);}
-function setFilterUI(f){['All','Web','Tw'].forEach(t=>{const el=document.getElementById('tab'+t);if(el)el.classList.toggle('active',(t==='All'&&f==='all')||(t==='Web'&&f==='web')||(t==='Tw'&&f==='twitter'));});}
+
+function setFilter(f){
+  S.filter=f;
+  setFilterUI();
+  if(S.current&&S.playerNews[S.current.id]) renderDetailFeed(S.playerNews[S.current.id]);
+}
+
+function setFilterUI(){
+  const ids=['tabAll','tabWeb','tabInj','tabSus','tabLin','tabTrf'];
+  ids.forEach(id=>document.getElementById(id)?.classList.remove('active'));
+
+  const map={
+    all:'tabAll',
+    web:'tabWeb',
+    injuries:'tabInj',
+    suspensions:'tabSus',
+    lineups:'tabLin',
+    transfers:'tabTrf'
+  };
+
+  document.getElementById(map[S.filter]||'tabAll')?.classList.add('active');
+}
+
 function status(t){document.getElementById('hStatus').textContent=t}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 let tt;function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className=`toast show ${type}`;clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),3500)}
