@@ -113,12 +113,16 @@ function buildQueries(name, team, league) {
   const sport = ['AR','UY','CL','CO','MX','BR','ES','IT','FR','PT'].includes(league) ? 'fútbol' : 'football';
   const competition = getCompetitionName(league);
 
+  // Con equipo: busca nombre + equipo (más preciso)
+  // Sin equipo: busca nombre + competición como contexto
+  const context = teamStr || ` "${competition}"`;
+
   return [
-    { query: `"${name}"${teamStr} "${competition}" when:7d`,   locale, bucket: '7d' },
-    { query: `"${name}" "${competition}" when:30d`,             locale, bucket: '7d' },
-    { query: `"${name}"${teamStr} ${sport} when:14d`,          locale, bucket: '7d' },
-    { query: `"${name}"${teamStr} "${competition}" when:60d`,  locale, bucket: '30d' },
-    { query: `"${name}" ${sport} when:90d`,                    locale, bucket: '365d' },
+    { query: `"${name}"${context} "${competition}" when:7d`,  locale, bucket: '7d' },
+    { query: `"${name}"${context} ${sport} when:14d`,         locale, bucket: '7d' },
+    { query: `"${name}"${context} when:30d`,                  locale, bucket: '30d' },
+    { query: `"${name}"${context} "${competition}" when:60d`, locale, bucket: '30d' },
+    { query: `"${name}"${context} when:90d`,                  locale, bucket: '365d' },
   ];
 }
 
