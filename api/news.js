@@ -1,5 +1,5 @@
 // api/news.js
-// Noticias reales recientes desde Google News RSS
+// Noticias reales desde Google News RSS (hasta 1 año)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -7,6 +7,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -14,32 +15,37 @@ export default async function handler(req, res) {
   const { name, team } = req.query;
 
   if (!name) {
-    return res.status(400).json({ error: 'Falta el parámetro name' });
+    return res.status(400).json({ error: 'Missing player name' });
   }
 
   try {
-    // 1) intentamos muy reciente: últimas 24h
-    let items = await fetchGoogleNews(buildQuery(name, team, 'd'));
 
-    // 2) si hay muy poco, ampliamos a últimos 7 días
+    // 1️⃣ últimas 24 horas
+    let items = await fetchGoogleNews(buildQuery(name, team, 'day'));
+
+    // 2️⃣ última semana
     if (items.length < 4) {
-      items = await fetchGoogleNews(buildQuery(name, team, 'w'));
+      items = await fetchGoogleNews(buildQuery(name, team, 'week'));
     }
 
-    // 3) si sigue habiendo poco, búsqueda más amplia sin equipo
+    // 3️⃣ último año
     if (items.length < 4) {
-      items = await fetchGoogleNews(buildQuery(name, null, 'w'));
+      items = await fetchGoogleNews(buildQuery(name, team, 'year'));
+    }
+
+    // 4️⃣ fallback sin equipo
+    if (items.length < 4) {
+      items = await fetchGoogleNews(buildQuery(name, null, 'year'));
     }
 
     const news = items
-      .filter((item) => isRelevant(item, name, team))
-      .filter((item) => minutesSince(item.pubDate) <= 10080) // max 7 días
+      .filter(item => isRelevant(item, name, team))
+      .filter(item => minutesSince(item.pubDate) <= 525600) // 1 año
       .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate))
       .slice(0, 12)
-      .map((item) => ({
+      .map(item => ({
         type: 'web',
         source: item.source || 'Google News',
-        handle: null,
         title: item.title,
         excerpt: item.description || '',
         url: item.link,
@@ -52,6 +58,7 @@ export default async function handler(req, res) {
       player: name,
       team: team || null
     });
+
   } catch (e) {
     console.error('api/news error:', e);
     return res.status(500).json({ error: e.message || 'Unknown error' });
@@ -59,85 +66,71 @@ export default async function handler(req, res) {
 }
 
 async function fetchGoogleNews(query) {
-  const rssUrl =
+
+  const url =
     `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
     `&hl=es-419&gl=AR&ceid=AR:es-419`;
 
-  const rssRes = await fetch(rssUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0'
-    }
+  const r = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' }
   });
 
-  if (!rssRes.ok) {
-    const errText = await rssRes.text();
-    throw new Error(`Google News RSS error ${rssRes.status}: ${errText}`);
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(`Google News error ${r.status}: ${err}`);
   }
 
-  const xml = await rssRes.text();
-  return parseGoogleNewsRSS(xml);
+  const xml = await r.text();
+
+  return parseRSS(xml);
 }
 
-function buildQuery(name, team, recency = 'd') {
-  // recency: d = último día, w = última semana
+function buildQuery(name, team, range) {
+
   const parts = [`"${name}"`];
 
-  if (team) {
-    parts.push(`"${team}"`);
-  }
+  if (team) parts.push(`"${team}"`);
 
   parts.push('(football OR futbol OR soccer)');
-  parts.push(`when:${recency}`);
+
+  if (range === 'day') parts.push('when:1d');
+  if (range === 'week') parts.push('when:7d');
+  if (range === 'year') parts.push('when:365d');
 
   return parts.join(' ');
 }
 
-function parseGoogleNewsRSS(xml) {
+function parseRSS(xml) {
+
   const items = [];
-  const itemMatches = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+  const matches = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
 
-  for (const rawItem of itemMatches) {
-    const title = decodeHtml(stripCdata(extractTag(rawItem, 'title')));
-    const link = decodeHtml(stripCdata(extractTag(rawItem, 'link')));
-    const pubDate = decodeHtml(stripCdata(extractTag(rawItem, 'pubDate')));
-    const descriptionRaw = decodeHtml(stripCdata(extractTag(rawItem, 'description')));
-    const source = decodeHtml(stripCdata(extractTag(rawItem, 'source')));
+  for (const raw of matches) {
 
-    const description = cleanDescription(descriptionRaw);
+    const title = decode(stripCdata(tag(raw, 'title')));
+    const link = decode(stripCdata(tag(raw, 'link')));
+    const pubDate = decode(stripCdata(tag(raw, 'pubDate')));
+    const description = cleanDescription(tag(raw, 'description'));
+    const source = decode(stripCdata(tag(raw, 'source')));
 
     if (title && link) {
       items.push({
         title: cleanTitle(title),
         link,
         pubDate,
-        source,
-        description
+        description,
+        source
       });
     }
   }
 
-  return dedupeByTitle(items);
+  return dedupe(items);
 }
 
-function dedupeByTitle(items) {
-  const seen = new Set();
-  const out = [];
-
-  for (const item of items) {
-    const key = normalizeText(item.title);
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(item);
-    }
-  }
-
-  return out;
-}
-
-function extractTag(text, tag) {
-  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
-  const match = text.match(regex);
-  return match ? match[1].trim() : '';
+function tag(text, tag) {
+  const r = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+  const m = text.match(r);
+  return m ? m[1] : '';
 }
 
 function stripCdata(text) {
@@ -147,70 +140,91 @@ function stripCdata(text) {
     .trim();
 }
 
-function cleanTitle(title) {
-  return String(title || '')
+function cleanTitle(t) {
+  return String(t)
     .replace(/\s*-\s*[^-]+$/, '')
-    .replace(/\s+/g, ' ')
     .trim();
 }
 
 function cleanDescription(html) {
+
   const text = String(html || '')
-    .replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, '$1')
-    .replace(/<[^>]+>/g, ' ')
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1')
+    .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-  return text.length > 160 ? text.slice(0, 159).trim() + '…' : text;
+  return text.length > 160
+    ? text.slice(0, 159) + '…'
+    : text;
 }
 
-function decodeHtml(str) {
+function decode(str) {
   return String(str || '')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
+    .replace(/&#39;/g, "'");
 }
 
-function normalizeText(str) {
+function dedupe(items) {
+
+  const seen = new Set();
+  const out = [];
+
+  for (const i of items) {
+
+    const key = normalize(i.title);
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(i);
+    }
+  }
+
+  return out;
+}
+
+function normalize(str) {
   return String(str || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
     .trim();
 }
 
 function isRelevant(item, name, team) {
-  const haystack = normalizeText(
+
+  const text = normalize(
     `${item.title} ${item.description} ${item.source}`
   );
 
-  const player = normalizeText(name);
-  const teamNorm = normalizeText(team || '');
+  const player = normalize(name);
 
-  if (!haystack.includes(player)) return false;
-
-  // Si viene team, tratamos de priorizarlo, pero no lo hacemos obligatorio
-  // porque muchas notas nombran al jugador y no siempre repiten el club.
-  if (teamNorm && haystack.includes(teamNorm)) return true;
+  if (!text.includes(player)) return false;
 
   return true;
 }
 
 function minutesSince(dateStr) {
+
   if (!dateStr) return 999999;
+
   const d = new Date(dateStr).getTime();
+
   if (Number.isNaN(d)) return 999999;
+
   return Math.max(0, Math.floor((Date.now() - d) / 60000));
 }
 
 function timeAgo(dateStr) {
+
   const mins = minutesSince(dateStr);
-  if (mins < 60) return `hace ${Math.max(1, mins)}min`;
-  if (mins < 1440) return `hace ${Math.floor(mins / 60)}h`;
+
+  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 1440) return `hace ${Math.floor(mins / 60)} h`;
+
   return `hace ${Math.floor(mins / 1440)} días`;
 }
