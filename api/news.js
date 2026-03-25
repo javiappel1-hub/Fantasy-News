@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       try {
         const items = await fetchGoogleNews(q.query, q.lang);
         const filtered = items
-          .filter(i => isRelevant(i, name, lastName))
+          .filter(i => isRelevant(i, name, lastName, firstName))
           .map(i => ({ ...i, bucket: q.bucket }));
         allItems.push(...filtered);
       } catch (e) {
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     // Deduplicar y ordenar
     const deduped = dedupeByTitle(allItems)
       .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate))
-      .slice(0, 40);
+      .slice(0, 60);
 
     const news = deduped.map(item => ({
       type: 'web',
@@ -68,19 +68,19 @@ function buildQueries(name, lastName, team, isPremier) {
   const teamStr = team ? ` "${team}"` : '';
 
   if (isPremier) {
-    // Búsqueda en inglés para Premier League
     queries.push({ query: `"${name}"${teamStr} football when:7d`, lang: 'en', bucket: '7d' });
     queries.push({ query: `"${name}" football when:30d`, lang: 'en', bucket: '30d' });
     queries.push({ query: `"${lastName}"${teamStr} football when:7d`, lang: 'en', bucket: '7d' });
     queries.push({ query: `"${lastName}" football injury lineup when:30d`, lang: 'en', bucket: '30d' });
+    queries.push({ query: `"${lastName}" premier league when:30d`, lang: 'en', bucket: '30d' });
+    queries.push({ query: `"${lastName}"${teamStr} when:90d`, lang: 'en', bucket: '365d' });
   } else {
-    // Búsqueda en español para otras ligas
     queries.push({ query: `"${name}"${teamStr} fútbol when:7d`, lang: 'es', bucket: '7d' });
     queries.push({ query: `"${name}" fútbol when:30d`, lang: 'es', bucket: '30d' });
-    queries.push({ query: `"${lastName}"${teamStr} fútbol when:7d`, lang: 'es', bucket: '7d' });
-    // También en inglés como fallback
+    queries.push({ query: `"${lastName}"${teamStr} fútbol when:30d`, lang: 'es', bucket: '30d' });
     queries.push({ query: `"${name}"${teamStr} football when:7d`, lang: 'en', bucket: '7d' });
     queries.push({ query: `"${lastName}"${teamStr} football when:30d`, lang: 'en', bucket: '30d' });
+    queries.push({ query: `"${lastName}" fútbol when:90d`, lang: 'es', bucket: '365d' });
   }
 
   return queries;
@@ -109,10 +109,23 @@ function parseRSS(xml) {
   return items;
 }
 
-function isRelevant(item, fullName, lastName) {
+function isRelevant(item, fullName, lastName, firstName) {
   const text = normalize(`${item.title} ${item.description}`);
-  // Acepta si aparece el apellido (más flexible)
-  return text.includes(normalize(fullName)) || text.includes(normalize(lastName));
+  const normalFull = normalize(fullName);
+  const normalLast = normalize(lastName);
+  const normalFirst = normalize(firstName);
+
+  // Siempre acepta si aparece el nombre completo
+  if (text.includes(normalFull)) return true;
+
+  // Solo usa apellido si tiene 6+ letras Y aparece junto al nombre o equipo
+  // Evita falsos positivos como "Henry" → Thierry Henry
+  if (normalLast.length >= 6) {
+    // El apellido debe aparecer cerca del primer nombre o ser poco común
+    if (text.includes(normalFirst) && text.includes(normalLast)) return true;
+  }
+
+  return false;
 }
 
 function detectCategory(item) {
