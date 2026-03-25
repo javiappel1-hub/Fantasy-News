@@ -428,12 +428,12 @@ function logToSheets(isNew=false){
       isNew: isNew,
       players: S.players.map(p=>p.name).join(', ')
     };
-    fetch(SHEETS_URL, {
+    // Va por el backend de Vercel para evitar CORS
+    fetch(`${API_BASE}/api/log`, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    });
+    }).catch(()=>{});
   }catch(e){ console.warn('Sheets log failed:', e); }
 }
 
