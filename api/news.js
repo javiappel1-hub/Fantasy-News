@@ -1,5 +1,6 @@
 // api/news.js
-// Noticias reales para un jugador desde Google News RSS
+// Noticias reales desde Google News RSS
+// Devuelve hasta 30 resultados, priorizando recencia
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -21,32 +22,66 @@ export default async function handler(req, res) {
   try {
     const queries = buildQueries(name, team);
 
-    let rawItems = [];
+    const bucketed = {
+      '1d': [],
+      '7d': [],
+      '30d': [],
+      '365d': []
+    };
 
     for (const query of queries) {
       try {
-        const items = await fetchGoogleNews(query);
-        rawItems.push(...items);
+        const items = await fetchGoogleNews(query.q);
 
-        // Cortamos temprano si ya tenemos suficiente material bruto
-        if (rawItems.length >= 15) break;
+        const cleaned = items
+          .filter((item) => isRelevant(item, name))
+          .filter((item) => minutesSince(item.pubDate) <= 525600) // hasta 1 año
+          .map((item) => ({
+            ...item,
+            bucket: query.bucket
+          }));
+
+        bucketed[query.bucket].push(...cleaned);
       } catch (err) {
-        console.error('query failed:', query, err.message);
+        console.error('query failed:', query.q, err.message);
       }
     }
 
-    // Limitar bruto
-    rawItems = rawItems.slice(0, 15);
+    // Deduplicar dentro de cada bucket
+    for (const key of Object.keys(bucketed)) {
+      bucketed[key] = dedupeByTitleAndLink(bucketed[key])
+        .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate));
+    }
 
-    // Filtrar, deduplicar y ordenar
-    let finalItems = rawItems
-      .filter((item) => isRelevant(item, name))
-      .filter((item) => minutesSince(item.pubDate) <= 525600) // hasta 1 año
-      .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate));
+    // Mezcla priorizando recencia, pero permitiendo volumen
+    let finalItems = [
+      ...bucketed['1d'].slice(0, 10),
+      ...bucketed['7d'].slice(0, 10),
+      ...bucketed['30d'].slice(0, 10)
+    ];
 
-    finalItems = dedupeByTitleAndLink(finalItems).slice(0, 12);
+    // Completar con 1 año si todavía falta volumen
+    if (finalItems.length < 30) {
+      const usedKeys = new Set(
+        finalItems.map((item) => `${normalize(item.title)}|${normalize(item.link)}`)
+      );
 
-    const sources = unique(finalItems.map((x) => x.source).filter(Boolean)).slice(0, 5);
+      for (const item of bucketed['365d']) {
+        const key = `${normalize(item.title)}|${normalize(item.link)}`;
+        if (!usedKeys.has(key)) {
+          finalItems.push(item);
+          usedKeys.add(key);
+        }
+        if (finalItems.length >= 30) break;
+      }
+    }
+
+    // Deduplicación final y orden final
+    finalItems = dedupeByTitleAndLink(finalItems)
+      .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate))
+      .slice(0, 30);
+
+    const sources = unique(finalItems.map((x) => x.source).filter(Boolean)).slice(0, 6);
     const newestMinutes = finalItems.length ? minutesSince(finalItems[0].pubDate) : null;
 
     const news = finalItems.map((item) => ({
@@ -80,26 +115,50 @@ export default async function handler(req, res) {
 
 function buildQueries(name, team) {
   const queries = [];
-  const quotedName = `"${name}"`;
+  const cleanName = String(name || '').trim();
+  const cleanTeam = String(team || '').trim();
 
-  // Base
-  queries.push(buildQuery(`${quotedName} ${team ? `"${team}"` : ''} (football OR futbol OR soccer) when:30d`));
-  queries.push(buildQuery(`${quotedName} (football OR futbol OR soccer) when:30d`));
+  const quotedName = `"${cleanName}"`;
 
-  // Temas útiles
-  queries.push(buildQuery(`${quotedName} ${team ? `"${team}"` : ''} (injury OR lesion OR lesión OR medical OR parte médico) when:365d`));
-  queries.push(buildQuery(`${quotedName} ${team ? `"${team}"` : ''} (suspension OR suspended OR suspendido OR sancion OR sanción) when:365d`));
-  queries.push(buildQuery(`${quotedName} ${team ? `"${team}"` : ''} (lineup OR convocatoria OR titular OR starter OR bench OR suplente) when:30d`));
-  queries.push(buildQuery(`${quotedName} ${team ? `"${team}"` : ''} (coach OR manager OR entrenador OR declared OR declaraciones) when:30d`));
+  const parts = cleanName.split(' ').filter(Boolean);
+  const shortName = parts.length >= 2 ? `"${parts[parts.length - 1]}"` : quotedName;
 
-  // Fallback más amplio
-  queries.push(buildQuery(`${quotedName} when:365d`));
+  const fullNameQuery = cleanTeam
+    ? `${quotedName} "${cleanTeam}" (football OR futbol OR soccer)`
+    : `${quotedName} (football OR futbol OR soccer)`;
 
-  return unique(queries);
+  const shortNameQuery = cleanTeam
+    ? `${shortName} "${cleanTeam}" (football OR futbol OR soccer)`
+    : `${shortName} (football OR futbol OR soccer)`;
+
+  queries.push({ q: `${fullNameQuery} when:1d`, bucket: '1d' });
+  queries.push({ q: `${shortNameQuery} when:1d`, bucket: '1d' });
+
+  queries.push({ q: `${fullNameQuery} when:7d`, bucket: '7d' });
+  queries.push({ q: `${shortNameQuery} when:7d`, bucket: '7d' });
+
+  queries.push({ q: `${fullNameQuery} when:30d`, bucket: '30d' });
+  queries.push({ q: `${shortNameQuery} when:30d`, bucket: '30d' });
+
+  queries.push({ q: `${fullNameQuery} when:365d`, bucket: '365d' });
+  queries.push({ q: `${shortName} when:365d`, bucket: '365d' });
+
+  return dedupeQueries(queries);
 }
 
-function buildQuery(q) {
-  return q.replace(/\s+/g, ' ').trim();
+function dedupeQueries(queries) {
+  const seen = new Set();
+  const out = [];
+
+  for (const item of queries) {
+    const key = item.q.toLowerCase().trim();
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+
+  return out;
 }
 
 async function fetchGoogleNews(query) {
@@ -128,7 +187,7 @@ function parseRSS(xml) {
     const title = decode(stripCdata(tag(raw, 'title')));
     const link = decode(stripCdata(tag(raw, 'link')));
     const pubDate = decode(stripCdata(tag(raw, 'pubDate')));
-    const description = cleanDescription(tag(raw, 'description'));
+    const description = cleanDescription(decode(stripCdata(tag(raw, 'description'))));
     const source = decode(stripCdata(tag(raw, 'source')));
 
     if (title && link) {
@@ -167,8 +226,8 @@ function cleanTitle(t) {
 
 function cleanDescription(html) {
   const text = String(html || '')
-    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1')
-    .replace(/<[^>]+>/g, '')
+    .replace(/<a\b[^>]*>.*?<\/a>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -201,11 +260,8 @@ function isRelevant(item, name) {
   const player = normalize(name);
 
   if (!player) return false;
-
-  // Coincidencia exacta del nombre completo
   if (text.includes(player)) return true;
 
-  // Fallback: si el nombre tiene varias palabras, pedimos que aparezcan al menos 2
   const parts = player.split(' ').filter(Boolean);
   if (parts.length >= 2) {
     let matches = 0;
@@ -249,7 +305,7 @@ function minutesSince(dateStr) {
 function timeAgo(dateStr) {
   const mins = minutesSince(dateStr);
 
-  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 60) return `hace ${Math.max(1, mins)} min`;
   if (mins < 1440) return `hace ${Math.floor(mins / 60)} h`;
   if (mins < 43200) return `hace ${Math.floor(mins / 1440)} días`;
   if (mins < 525600) return `hace ${Math.floor(mins / 43200)} meses`;
@@ -262,15 +318,17 @@ function buildSummaryText(name, count, newestMinutes, sources) {
     return `No se encontraron noticias recientes sobre ${name}.`;
   }
 
-  const sourcesText = sources.length ? ` Fuentes: ${sources.join(', ')}.` : '';
   const latestText =
     newestMinutes === null ? '' : ` Última actualización ${timeAgoFromMinutes(newestMinutes)}.`;
+
+  const sourcesText =
+    sources.length ? ` Fuentes: ${sources.join(', ')}.` : '';
 
   return `Se encontraron ${count} noticias sobre ${name}.${latestText}${sourcesText}`;
 }
 
 function timeAgoFromMinutes(mins) {
-  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 60) return `hace ${Math.max(1, mins)} min`;
   if (mins < 1440) return `hace ${Math.floor(mins / 60)} h`;
   if (mins < 43200) return `hace ${Math.floor(mins / 1440)} días`;
   return `hace ${Math.floor(mins / 43200)} meses`;
