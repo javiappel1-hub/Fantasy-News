@@ -228,7 +228,23 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .preview-overlay{position:fixed;inset:0;background:rgba(10,15,30,.3);z-index:149;display:none;top:56px;backdrop-filter:blur(2px)}
 .preview-overlay.open{display:block}
 
-/* TOAST */
+/* MODAL NOMBRE EQUIPO */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,15,30,.5);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:16px;padding:32px;width:360px;max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,.15);transform:translateY(12px);transition:transform .2s}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-icon{font-size:36px;margin-bottom:12px;text-align:center}
+.modal-title{font-size:20px;font-weight:800;color:var(--text);text-align:center;margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:24px}
+.modal-field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.modal-label{font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;font-weight:600}
+.modal-input{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);padding:11px 14px;font-family:var(--fn);font-size:14px;font-weight:500;border-radius:10px;outline:none;transition:border-color .2s;width:100%}
+.modal-input:focus{border-color:var(--accent);background:#fff}
+.modal-btn{width:100%;background:var(--accent);color:#fff;border:none;padding:13px;font-family:var(--fn);font-size:14px;font-weight:700;cursor:pointer;border-radius:10px;transition:all .15s;margin-top:4px}
+.modal-btn:hover{background:var(--accent-dark);transform:translateY(-1px)}
+.modal-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.modal-skip{display:block;text-align:center;margin-top:12px;font-size:12px;color:var(--muted);cursor:pointer;transition:color .15s}
+.modal-skip:hover{color:var(--accent)}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--navy);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 16px;font-size:12px;color:#fff;z-index:200;transform:translateY(60px);opacity:0;transition:all .25s;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,.2);font-weight:500}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-color:rgba(0,184,122,.4)}
@@ -257,6 +273,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="live-dot"></div>
     <span class="live-txt" id="hStatus">LISTO</span>
   </div>
+  <span id="headerGreet" style="font-size:12px;color:rgba(255,255,255,.5);font-weight:500"></span>
 </header>
 
 <div class="app">
@@ -296,7 +313,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
   <div class="players-grid-scr" id="gridScr">
     <div class="pgrid-header">
       <div>
-        <div class="pgrid-title">Tu equipo</div>
+        <div class="pgrid-title" id="pgridTitle">Tu equipo</div>
         <div class="pgrid-sub" id="gridSub">PRECARGANDO NOTICIAS EN BACKGROUND…</div>
       </div>
       <span class="pgrid-badge" id="gridBadge"></span>
@@ -352,11 +369,94 @@ main{display:flex;flex-direction:column;overflow:hidden}
     </a>
   </div>
 </div>
+<!-- MODAL NOMBRE EQUIPO -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-icon">⚽</div>
+    <div class="modal-title">¿Cómo se llama tu equipo?</div>
+    <div class="modal-sub">Lo usaremos para personalizar tu experiencia y guardar tu equipo automáticamente.</div>
+    <div class="modal-field">
+      <div class="modal-label">Nombre de tu equipo</div>
+      <input class="modal-input" id="inputTeamName" placeholder="ej: Los Galácticos" maxlength="30" onkeydown="if(event.key==='Enter')saveTeamName()">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Tu nombre (opcional)</div>
+      <input class="modal-input" id="inputUserName" placeholder="ej: Javier" maxlength="20" onkeydown="if(event.key==='Enter')saveTeamName()">
+    </div>
+    <button class="modal-btn" id="modalBtn" onclick="saveTeamName()">Guardar y continuar</button>
+    <span class="modal-skip" onclick="skipTeamName()">Continuar sin guardar</span>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-const S = { players:[], images:[], current:null, playerNews:{}, filter:'all' };
+const S = { players:[], images:[], current:null, playerNews:{}, filter:'all', teamName:'', userName:'' };
+
+// ── LOCALSTORAGE ──────────────────────────────────────────────────────────────
+function saveToStorage(){
+  localStorage.setItem('fn_teamName', S.teamName);
+  localStorage.setItem('fn_userName', S.userName);
+  localStorage.setItem('fn_players', JSON.stringify(S.players));
+}
+
+function loadFromStorage(){
+  S.teamName = localStorage.getItem('fn_teamName') || '';
+  S.userName = localStorage.getItem('fn_userName') || '';
+  const saved = localStorage.getItem('fn_players');
+  if(saved){
+    try{ S.players = JSON.parse(saved); }catch(e){}
+  }
+}
+
+function clearStorage(){
+  localStorage.removeItem('fn_teamName');
+  localStorage.removeItem('fn_userName');
+  localStorage.removeItem('fn_players');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+let _pendingExtract = false;
+
+function openModal(){
+  // Pre-fill if already has name
+  if(S.teamName) document.getElementById('inputTeamName').value = S.teamName;
+  if(S.userName) document.getElementById('inputUserName').value = S.userName;
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('inputTeamName').focus(), 200);
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function saveTeamName(){
+  const teamName = document.getElementById('inputTeamName').value.trim();
+  const userName = document.getElementById('inputUserName').value.trim();
+  if(!teamName){ document.getElementById('inputTeamName').focus(); return; }
+  S.teamName = teamName;
+  S.userName = userName;
+  closeModal();
+  if(_pendingExtract){ _pendingExtract=false; doExtract(); }
+  updateGreeting();
+}
+
+function skipTeamName(){
+  S.teamName = S.teamName || 'Mi equipo';
+  closeModal();
+  if(_pendingExtract){ _pendingExtract=false; doExtract(); }
+}
+
+function updateGreeting(){
+  const title = document.getElementById('pgridTitle');
+  if(title) title.textContent = S.teamName || 'Tu equipo';
+  // Update header greeting if user has name
+  if(S.userName){
+    const greet = document.getElementById('headerGreet');
+    if(greet) greet.textContent = `Hola, ${S.userName}`;
+  }
+}
 
 function openFilePicker(){ document.getElementById('fileInput').click(); }
 function onFiles(e){ Array.from(e.target.files||[]).forEach(addImage); }
@@ -379,6 +479,16 @@ function renderThumbs(){
 }
 
 async function extractPlayers(){
+  // If no team name yet, show modal first
+  if(!S.teamName){
+    _pendingExtract = true;
+    openModal();
+    return;
+  }
+  doExtract();
+}
+
+async function doExtract(){
   const btn=document.getElementById('btnExtract');
   btn.disabled=true; btn.textContent='Analizando...'; status('ANALIZANDO...');
   try{
@@ -389,6 +499,7 @@ async function extractPlayers(){
     if(!d.players?.length) throw new Error('No se detectaron jugadores en la imagen');
     S.players=d.players.map((p,i)=>({...p,id:i+1,price:p.price||'—',points:p.points||'—'}));
     S.playerNews={};
+    saveToStorage();
     afterLoad();
     toast(`✅ ${S.players.length} jugadores detectados`,'ok');
   }catch(e){ toast(`⚠️ ${e.message}`,'err'); status('ERROR'); }
@@ -470,6 +581,9 @@ function showGrid(){
   document.querySelectorAll('.player-row').forEach(r=>r.classList.remove('active'));
   S.current=null;
   document.getElementById('gridBadge').textContent=`${S.players.length} jugadores`;
+  // Show team name
+  const title=document.getElementById('pgridTitle');
+  if(title) title.textContent = S.teamName || 'Tu equipo';
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};
   const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
   document.getElementById('playerCards').innerHTML=sorted.map(p=>{
@@ -614,6 +728,38 @@ function status(t){ document.getElementById('hStatus').textContent=t; }
 function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 let tt;
 function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className=`toast show ${type}`;clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),4500);}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init(){
+  loadFromStorage();
+  if(S.teamName && S.players.length){
+    // Returning user — load their team automatically
+    updateGreeting();
+    S.playerNews={};
+    afterLoad();
+    toast(`👋 Bienvenido de vuelta${S.userName ? ', '+S.userName : ''}!`,'ok');
+  }
+}
+
+// Add reset button to sidebar
+document.addEventListener('DOMContentLoaded', ()=>{
+  init();
+  // Long press on logo to reset (for testing)
+  let pressTimer;
+  document.querySelector('.logo-mark').addEventListener('mousedown',()=>{
+    pressTimer=setTimeout(()=>{
+      if(confirm('¿Borrar equipo guardado y empezar de nuevo?')){
+        clearStorage(); S.players=[]; S.teamName=''; S.userName=''; S.playerNews={};
+        document.getElementById('sidebarPlayers').innerHTML='<div class="empty-sidebar">📷 Subí capturas o usá el demo para empezar</div>';
+        document.getElementById('gridScr').style.display='none';
+        document.getElementById('welcomeScr').style.display='flex';
+        document.getElementById('headerGreet').textContent='';
+        toast('Equipo borrado','ok');
+      }
+    },1500);
+  });
+  document.querySelector('.logo-mark').addEventListener('mouseup',()=>clearTimeout(pressTimer));
+});
 </script>
 </body>
 </html>
