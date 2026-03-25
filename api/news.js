@@ -1,5 +1,5 @@
 // api/news.js
-// Noticias reales desde Google News RSS
+// Noticias reales recientes desde Google News RSS
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,30 +18,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    const query = buildQuery(name, team);
+    // 1) intentamos muy reciente: últimas 24h
+    let items = await fetchGoogleNews(buildQuery(name, team, 'd'));
 
-    const rssUrl =
-      `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
-      `&hl=es-419&gl=AR&ceid=AR:es-419`;
-
-    const rssRes = await fetch(rssUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      }
-    });
-
-    if (!rssRes.ok) {
-      const errText = await rssRes.text();
-      throw new Error(`Google News RSS error ${rssRes.status}: ${errText}`);
+    // 2) si hay muy poco, ampliamos a últimos 7 días
+    if (items.length < 4) {
+      items = await fetchGoogleNews(buildQuery(name, team, 'w'));
     }
 
-    const xml = await rssRes.text();
-    const items = parseGoogleNewsRSS(xml);
+    // 3) si sigue habiendo poco, búsqueda más amplia sin equipo
+    if (items.length < 4) {
+      items = await fetchGoogleNews(buildQuery(name, null, 'w'));
+    }
 
     const news = items
-      .filter(item => isRelevant(item, name, team))
+      .filter((item) => isRelevant(item, name, team))
+      .filter((item) => minutesSince(item.pubDate) <= 10080) // max 7 días
+      .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate))
       .slice(0, 12)
-      .map(item => ({
+      .map((item) => ({
         type: 'web',
         source: item.source || 'Google News',
         handle: null,
@@ -50,8 +45,7 @@ export default async function handler(req, res) {
         url: item.link,
         time: timeAgo(item.pubDate),
         minutesAgo: minutesSince(item.pubDate)
-      }))
-      .sort((a, b) => a.minutesAgo - b.minutesAgo);
+      }));
 
     return res.status(200).json({
       news,
@@ -64,7 +58,28 @@ export default async function handler(req, res) {
   }
 }
 
-function buildQuery(name, team) {
+async function fetchGoogleNews(query) {
+  const rssUrl =
+    `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
+    `&hl=es-419&gl=AR&ceid=AR:es-419`;
+
+  const rssRes = await fetch(rssUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0'
+    }
+  });
+
+  if (!rssRes.ok) {
+    const errText = await rssRes.text();
+    throw new Error(`Google News RSS error ${rssRes.status}: ${errText}`);
+  }
+
+  const xml = await rssRes.text();
+  return parseGoogleNewsRSS(xml);
+}
+
+function buildQuery(name, team, recency = 'd') {
+  // recency: d = último día, w = última semana
   const parts = [`"${name}"`];
 
   if (team) {
@@ -72,6 +87,7 @@ function buildQuery(name, team) {
   }
 
   parts.push('(football OR futbol OR soccer)');
+  parts.push(`when:${recency}`);
 
   return parts.join(' ');
 }
@@ -100,7 +116,22 @@ function parseGoogleNewsRSS(xml) {
     }
   }
 
-  return items;
+  return dedupeByTitle(items);
+}
+
+function dedupeByTitle(items) {
+  const seen = new Set();
+  const out = [];
+
+  for (const item of items) {
+    const key = normalizeText(item.title);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+
+  return out;
 }
 
 function extractTag(text, tag) {
@@ -119,6 +150,7 @@ function stripCdata(text) {
 function cleanTitle(title) {
   return String(title || '')
     .replace(/\s*-\s*[^-]+$/, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -126,10 +158,11 @@ function cleanDescription(html) {
   const text = String(html || '')
     .replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, '$1')
     .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-  return text.length > 140 ? text.slice(0, 139).trim() + '…' : text;
+  return text.length > 160 ? text.slice(0, 159).trim() + '…' : text;
 }
 
 function decodeHtml(str) {
@@ -138,30 +171,45 @@ function decodeHtml(str) {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
+function normalizeText(str) {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function isRelevant(item, name, team) {
-  const haystack = `${item.title} ${item.description} ${item.source}`.toLowerCase();
-  const playerOk = haystack.includes(String(name || '').toLowerCase());
+  const haystack = normalizeText(
+    `${item.title} ${item.description} ${item.source}`
+  );
 
-  if (!playerOk) return false;
+  const player = normalizeText(name);
+  const teamNorm = normalizeText(team || '');
 
-  if (!team) return true;
+  if (!haystack.includes(player)) return false;
 
-  return haystack.includes(String(team).toLowerCase()) || true;
+  // Si viene team, tratamos de priorizarlo, pero no lo hacemos obligatorio
+  // porque muchas notas nombran al jugador y no siempre repiten el club.
+  if (teamNorm && haystack.includes(teamNorm)) return true;
+
+  return true;
 }
 
 function minutesSince(dateStr) {
-  if (!dateStr) return 9999;
+  if (!dateStr) return 999999;
   const d = new Date(dateStr).getTime();
-  if (Number.isNaN(d)) return 9999;
+  if (Number.isNaN(d)) return 999999;
   return Math.max(0, Math.floor((Date.now() - d) / 60000));
 }
 
 function timeAgo(dateStr) {
   const mins = minutesSince(dateStr);
-  if (mins === 9999) return 'reciente';
   if (mins < 60) return `hace ${Math.max(1, mins)}min`;
   if (mins < 1440) return `hace ${Math.floor(mins / 60)}h`;
   return `hace ${Math.floor(mins / 1440)} días`;
