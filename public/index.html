@@ -340,7 +340,6 @@ main{display:flex;flex-direction:column;overflow:hidden}
     </div>
     <div class="filter-bar">
       <div class="ftab active" id="tabAll" onclick="setFilter('all')">Todo <span class="tcnt" id="cAll">0</span></div>
-      <div class="ftab" id="tabWeb" onclick="setFilter('web')">🌐 Web <span class="tcnt" id="cWeb">0</span></div>
       <div class="ftab" id="tabInj" onclick="setFilter('injuries')">🤕 Lesiones <span class="tcnt" id="cInj">0</span></div>
       <div class="ftab" id="tabSus" onclick="setFilter('suspensions')">🟥 Sanciones <span class="tcnt" id="cSus">0</span></div>
       <div class="ftab" id="tabLin" onclick="setFilter('lineups')">📋 Alineaciones <span class="tcnt" id="cLin">0</span></div>
@@ -377,7 +376,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="modal-sub">Lo usaremos para personalizar tu experiencia y guardar tu equipo automáticamente.</div>
     <div class="modal-field">
       <div class="modal-label">Nombre de tu equipo</div>
-      <input class="modal-input" id="inputTeamName" placeholder="ej: Perro FC" maxlength="30" onkeydown="if(event.key==='Enter')saveTeamName()">
+      <input class="modal-input" id="inputTeamName" placeholder="ej: Los Galácticos" maxlength="30" onkeydown="if(event.key==='Enter')saveTeamName()">
     </div>
     <div class="modal-field">
       <div class="modal-label">Tu nombre (opcional)</div>
@@ -733,7 +732,6 @@ function closePreview(){
 
 function updateCounts(n){
   document.getElementById('cAll').textContent=n.length;
-  document.getElementById('cWeb').textContent=n.length;
   document.getElementById('cInj').textContent=n.filter(x=>(x.category||'general')==='injuries').length;
   document.getElementById('cSus').textContent=n.filter(x=>(x.category||'general')==='suspensions').length;
   document.getElementById('cLin').textContent=n.filter(x=>(x.category||'general')==='lineups').length;
@@ -742,7 +740,7 @@ function updateCounts(n){
 
 function setFilter(f){ S.filter=f; setFilterUI(); if(S.current&&S.playerNews[S.current.id]) renderDetailFeed(S.playerNews[S.current.id]); }
 function setFilterUI(){
-  const map={all:'tabAll',web:'tabWeb',injuries:'tabInj',suspensions:'tabSus',lineups:'tabLin',transfers:'tabTrf'};
+  const map={all:'tabAll',injuries:'tabInj',suspensions:'tabSus',lineups:'tabLin',transfers:'tabTrf'};
   Object.values(map).forEach(id=>document.getElementById(id)?.classList.remove('active'));
   document.getElementById(map[S.filter]||'tabAll')?.classList.add('active');
 }
