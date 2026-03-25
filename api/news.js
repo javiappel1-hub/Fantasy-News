@@ -1,6 +1,6 @@
 // api/news.js
 // Noticias reales desde Google News RSS
-// Devuelve hasta 30 resultados, priorizando recencia
+// Devuelve hasta 60 resultados, priorizando recencia
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -55,13 +55,13 @@ export default async function handler(req, res) {
 
     // Mezcla priorizando recencia, pero permitiendo volumen
     let finalItems = [
-      ...bucketed['1d'].slice(0, 10),
-      ...bucketed['7d'].slice(0, 10),
-      ...bucketed['30d'].slice(0, 10)
+      ...bucketed['1d'].slice(0, 20),
+      ...bucketed['7d'].slice(0, 20),
+      ...bucketed['30d'].slice(0, 20)
     ];
 
     // Completar con 1 año si todavía falta volumen
-    if (finalItems.length < 30) {
+    if (finalItems.length < 60) {
       const usedKeys = new Set(
         finalItems.map((item) => `${normalize(item.title)}|${normalize(item.link)}`)
       );
@@ -72,16 +72,16 @@ export default async function handler(req, res) {
           finalItems.push(item);
           usedKeys.add(key);
         }
-        if (finalItems.length >= 30) break;
+        if (finalItems.length >= 60) break;
       }
     }
 
     // Deduplicación final y orden final
     finalItems = dedupeByTitleAndLink(finalItems)
       .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate))
-      .slice(0, 30);
+      .slice(0, 60);
 
-    const sources = unique(finalItems.map((x) => x.source).filter(Boolean)).slice(0, 6);
+    const sources = unique(finalItems.map((x) => x.source).filter(Boolean)).slice(0, 8);
     const newestMinutes = finalItems.length ? minutesSince(finalItems[0].pubDate) : null;
 
     const news = finalItems.map((item) => ({
