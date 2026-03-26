@@ -781,15 +781,6 @@ async function selectTeam(pid, teamName){
       : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
   }
 }
-  // Buscar plantel y mostrar sugerencias de nombre
-  const squad = await fetchSquad(teamName, S.league);
-  const nameInput = document.getElementById(`ninput-${pid}`);
-  const suggestions = squad.length && nameInput ? matchSuggestions(squad, nameInput.value) : [];
-  const chipsEl = document.getElementById(`nsug-${pid}`);
-  if(chipsEl && suggestions.length){
-    chipsEl.innerHTML = suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('');
-  }
-}
 
 async function onTeamEdit(pid, input){
   const val = input.value.trim();
