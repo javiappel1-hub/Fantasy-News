@@ -660,7 +660,7 @@ async function suggestTeams(playerName, league){
 // Equipos conocidos por liga para sugerir sin llamada
 function getLeagueTeams(league){
   const teams = {
-    GB: ['Arsenal','Chelsea','Liverpool','Manchester City','Manchester United','Tottenham','Newcastle','West Ham','Aston Villa','Brighton','Fulham','Brentford','Crystal Palace','Everton','Nottingham Forest','Bournemouth','Wolves','Leicester','Ipswich','Southampton'],
+    GB: ['Arsenal','Chelsea','Liverpool','Manchester City','Manchester United','Tottenham','Newcastle','West Ham','Aston Villa','Brighton','Fulham','Brentford','Crystal Palace','Everton','Nottingham Forest','Bournemouth','Wolves','Leicester','Ipswich','Southampton','Sunderland'],
     ES: ['Real Madrid','Barcelona','Atletico Madrid','Sevilla','Valencia','Villarreal','Real Betis','Athletic Club','Real Sociedad','Girona','Osasuna','Getafe','Mallorca','Las Palmas','Rayo Vallecano','Celta Vigo','Espanyol','Alaves','Leganes','Valladolid'],
     AR: ['Boca Juniors','River Plate','Racing Club','Independiente','San Lorenzo','Huracán','Vélez','Estudiantes','Talleres','Belgrano','Lanús','Banfield','Defensa y Justicia','Tigre','Rosario Central','Newell\'s','Godoy Cruz','Platense','Sarmiento','Barracas Central'],
     IT: ['Juventus','Inter Milan','AC Milan','Napoli','Roma','Lazio','Fiorentina','Atalanta','Torino','Bologna','Genoa','Udinese','Sassuolo','Empoli','Lecce','Monza','Frosinone','Verona','Cagliari','Salernitana'],
@@ -928,15 +928,15 @@ function updateNormStatus(pid){
 }
 
 function confirmNormalization(){
-  // Auto-aprobar jugadores con nombre completo y equipo detectado
+  // Auto-aprobar jugadores con nombre completo (equipo opcional)
   S.players.forEach(p=>{
     const row = document.getElementById(`nrow-${p.id}`);
     if(!row) return;
     const input = document.getElementById(`ninput-${p.id}`);
     const currentName = input ? input.value.trim() : p.name;
-    if(isNameComplete(currentName) && p.team){
+    if(isNameComplete(currentName)){
       row.dataset.nameok = '1';
-      row.dataset.teamok = '1';
+      row.dataset.teamok = '1'; // equipo opcional si nombre completo
     }
   });
 
