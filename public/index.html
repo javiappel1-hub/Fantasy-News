@@ -119,9 +119,15 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .norm-row{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:34px 130px 1fr 28px;align-items:center;gap:12px}
 .norm-row.needs-review{border-left:3px solid #f0a500;border-radius:0 10px 10px 0}
 .norm-pos{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:9px;font-weight:700;flex-shrink:0}
-.norm-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.norm-row.no-team-row{border-left:3px solid #e8333a;border-radius:0 10px 10px 0}
+.norm-meta{display:flex;flex-direction:column;gap:4px;min-width:0}
 .norm-detected{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.norm-team{font-size:10px;color:var(--muted)}
+.norm-team-wrap{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.norm-team-label{font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--muted2);text-transform:uppercase;font-weight:600}
+.norm-team-val{font-size:11px;color:var(--muted)}
+.team-edit{font-size:11px;padding:3px 8px;border-radius:6px;border:1.5px solid #e8333a;background:#fff0f0;color:var(--text);outline:none;width:100%;transition:border-color .2s}
+.team-edit.filled{border-color:#00b87a;background:#f0fdf8}
+.team-edit-hint{font-size:9px;color:#c00020;margin-top:1px}
 .norm-field{display:flex;flex-direction:column;gap:3px}
 .norm-field label{font-family:var(--fm);font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase;font-weight:600}
 .norm-field input{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);padding:7px 10px;font-family:var(--fn);font-size:13px;border-radius:8px;outline:none;transition:border-color .2s;width:100%}
@@ -129,6 +135,9 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .norm-field input.ok{border-color:#00b87a}
 .norm-field input.warn{border-color:#f0a500}
 .norm-status{font-size:16px;text-align:center}
+.norm-suggestions{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.norm-sug-item{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .12s;font-weight:500}
+.norm-sug-item:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
 .norm-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
 .norm-hint{font-size:11px;color:var(--muted);max-width:340px;line-height:1.6}
 .btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;transition:all .15s;display:flex;align-items:center;gap:6px}
@@ -595,7 +604,14 @@ async function doExtract(){
     const d=await r.json();
     if(!r.ok) throw new Error(d.error||`Error ${r.status}`);
     if(!d.players?.length) throw new Error('No se detectaron jugadores en la imagen');
-    S.players=d.players.map((p,i)=>({...p,id:i+1,price:p.price||'—',points:p.points||'—'}));
+    S.players=d.players.map((p,i)=>({
+      ...p,
+      id:i+1,
+      price:p.price||'—',
+      points:p.points||'—',
+      nameComplete: p.nameComplete !== false,
+      teamConfidence: p.teamConfidence || 'high'
+    }));
     S.playerNews={};
     showNormalization();
     toast(`✅ ${S.players.length} jugadores detectados — confirmá los nombres`,'ok');
@@ -606,48 +622,128 @@ async function doExtract(){
 function isNameComplete(name){
   if(!name) return false;
   const n = name.trim();
-  // Abreviado si: termina en inicial (A, B.), tiene "...", tiene solo 1 palabra, o es muy corto
   if(n.endsWith('...') || n.includes('…')) return false;
-  if(/\s[A-Z]\.?$/.test(n)) return false; // termina en inicial
-  if(/^[A-Z][a-z]*\s[A-Z]$/.test(n)) return false; // Apellido + inicial
-  if(n.split(' ').length < 2) return false; // solo apellido
+  if(/\s[A-Z]\.?$/.test(n)) return false;
+  if(/^[A-Z][a-z]*\s[A-Z]$/.test(n)) return false;
+  if(n.split(' ').length < 2) return false;
   if(n.length < 6) return false;
   return true;
 }
 
-function showNormalization(){
+// Cache de planteles ya buscados
+const squadCache = {};
+
+async function fetchSquad(team, league){
+  const key = `${team}-${league}`;
+  if(squadCache[key]) return squadCache[key];
+  try{
+    const r = await fetch(`${API_BASE}/api/squad?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}`);
+    const d = await r.json();
+    squadCache[key] = d.players || [];
+    return squadCache[key];
+  }catch(e){ return []; }
+}
+
+function matchSuggestions(squad, rawName){
+  if(!squad.length) return [];
+  const parts = rawName.trim().split(/\s+/);
+  const lastName = parts[0].toLowerCase();
+  return squad.filter(p => {
+    const pName = (p.name||'').toLowerCase();
+    const pLast = (p.lastName||'').toLowerCase();
+    return pName.includes(lastName) || pLast.includes(lastName) || lastName.includes(pLast);
+  }).slice(0, 4);
+}
+
+async function showNormalization(){
   document.getElementById('welcomeScr').style.display='none';
   document.getElementById('gridScr').style.display='none';
   document.getElementById('detailScr').classList.remove('visible');
   document.getElementById('normScr').style.display='block';
+  status('CARGANDO PLANTELES…');
 
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};
   const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
-  const needsReview = sorted.filter(p=>!isNameComplete(p.name)).length;
+  const needsReview = sorted.filter(p=>!isNameComplete(p.name) || !p.team).length;
+  document.getElementById('normBadge').textContent = needsReview > 0 ? `${needsReview} para revisar` : '✓ Todo OK';
 
-  document.getElementById('normBadge').textContent = needsReview > 0
-    ? `${needsReview} para revisar`
-    : '✓ Todo OK';
+  // Buscar planteles de equipos detectados
+  const teamsToFetch = [...new Set(sorted.map(p=>p.team).filter(Boolean))];
+  await Promise.all(teamsToFetch.map(async team => {
+    squadCache[`${team}-${S.league}`] = await fetchSquad(team, S.league);
+  }));
 
   const posCss={POR:'pos-POR',DEF:'pos-DEF',MED:'pos-MED',DEL:'pos-DEL'};
+
   document.getElementById('normList').innerHTML = sorted.map(p=>{
     const complete = isNameComplete(p.name);
-    return`<div class="norm-row${complete?'':' needs-review'}" id="nrow-${p.id}">
+    const hasTeam = !!p.team;
+    const teamConfidence = p.teamConfidence || (hasTeam ? 'high' : 'none');
+    const squad = hasTeam ? (squadCache[`${p.team}-${S.league}`] || []) : [];
+    const suggestions = !complete && squad.length ? matchSuggestions(squad, p.name) : [];
+
+    const teamHtml = hasTeam
+      ? `<div class="meta-team-label">Equipo${teamConfidence==='low'?` <span style="color:#b85000">· estimado del logo</span>`:''}</div>
+         <div class="meta-team-val">${esc(p.team)}</div>`
+      : `<div class="meta-team-label">Equipo <span style="color:#c00020">· no detectado</span></div>
+         <input class="team-edit" id="teaminp-${p.id}" placeholder="ej: River Plate"
+           oninput="onTeamEdit(${p.id},this)">
+         <div class="team-edit-hint">Ingresá el equipo para ver sugerencias</div>`;
+
+    const chipsHtml = suggestions.length
+      ? `<div class="norm-suggestions" id="nsug-${p.id}">${suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${p.id},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')}</div>`
+      : !complete && hasTeam
+        ? `<div class="norm-suggestions" id="nsug-${p.id}"><span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span></div>`
+        : `<div class="norm-suggestions" id="nsug-${p.id}"></div>`;
+
+    const rowClass = !hasTeam ? 'norm-row no-team-row' : !complete ? 'norm-row needs-review' : 'norm-row';
+
+    return`<div class="${rowClass}" id="nrow-${p.id}">
       <div class="norm-pos ${posCss[p.position]||'pos-DEL'}">${esc(p.position)}</div>
       <div class="norm-meta">
         <div class="norm-detected">${esc(p.name)}</div>
-        <div class="norm-team">${esc(p.team||'—')}</div>
+        <div class="norm-team-wrap">${teamHtml}</div>
       </div>
       <div class="norm-field">
         <label>Nombre para buscar</label>
         <input id="ninput-${p.id}" class="${complete?'ok':'warn'}" value="${esc(p.name)}"
           placeholder="Nombre completo del jugador"
           oninput="onNormInput(${p.id},this)">
+        ${chipsHtml}
       </div>
-      <div class="norm-status">${complete?'✓':'⚠'}</div>
+      <div class="norm-status" id="nst-${p.id}">${complete && hasTeam?'✓':'⚠'}</div>
     </div>`;
   }).join('');
   status('REVISÁ LOS NOMBRES');
+}
+
+async function onTeamEdit(pid, input){
+  const val = input.value.trim();
+  const chipsEl = document.getElementById(`nsug-${pid}`);
+  if(val.length < 3){ if(chipsEl) chipsEl.innerHTML=''; return; }
+  // Actualizar el team del player
+  const p = S.players.find(x=>x.id===pid);
+  if(p) p.team = val;
+  input.className = val.length > 2 ? 'team-edit filled' : 'team-edit';
+  // Buscar plantel
+  const squad = await fetchSquad(val, S.league);
+  const nameInput = document.getElementById(`ninput-${pid}`);
+  const suggestions = squad.length && nameInput ? matchSuggestions(squad, nameInput.value) : [];
+  if(chipsEl){
+    chipsEl.innerHTML = suggestions.length
+      ? suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')
+      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
+  }
+  // Actualizar estado de la fila
+  const row = document.getElementById(`nrow-${pid}`);
+  if(row && val.length > 2){ row.classList.remove('no-team-row'); row.classList.add('needs-review'); }
+}
+
+function applySuggestion(pid, name){
+  const input = document.getElementById(`ninput-${pid}`);
+  if(input){ input.value = name; onNormInput(pid, input); }
+  const sug = document.getElementById(`nsug-${pid}`);
+  if(sug) sug.style.display='none';
 }
 
 function onNormInput(pid, input){
