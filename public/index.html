@@ -687,8 +687,11 @@ async function fetchSquad(team, league){
   const key = `${team}-${league}`;
   if(squadCache[key]) return squadCache[key];
   // Mock local — funciona sin backend
-  const tl = (team||'').toLowerCase();
-  const mk = Object.keys(SQUAD_MOCK).find(k=>tl.includes(k)||k.includes(tl.split(' ')[0]));
+  const tl = (team||'').toLowerCase().trim();
+  // Buscar coincidencia exacta primero, luego parcial
+  let mk = Object.keys(SQUAD_MOCK).find(k=>tl===k);
+  if(!mk) mk = Object.keys(SQUAD_MOCK).find(k=>tl.includes(k));
+  if(!mk) mk = Object.keys(SQUAD_MOCK).find(k=>k.includes(tl));
   if(mk){ squadCache[key]=SQUAD_MOCK[mk]; return SQUAD_MOCK[mk]; }
   // Intentar ESPN si hay backend
   try{
@@ -775,7 +778,7 @@ async function showNormalization(){
       const el = document.getElementById(`nsug-${p.id}`);
       if(el){
         el.innerHTML = suggestions.length
-          ? suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${p.id},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')
+          ? suggestions.map(s=>`<span class="norm-sug-item" data-pid="${p.id}" data-name="${esc(s.name)}" onclick="applySuggestionFromChip(this)">${esc(s.name)}</span>`).join('')
           : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
       }
     });
@@ -818,9 +821,15 @@ async function selectTeam(pid, teamName){
   if(sug){
     const suggestions = squad.length ? matchSuggestions(squad, rawName) : [];
     sug.innerHTML = suggestions.length
-      ? suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')
-      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias del plantel — escribí el nombre completo y presioná ↵</span>`;
+      ? suggestions.map(s=>`<span class="norm-sug-item" data-pid="${pid}" data-name="${esc(s.name)}" onclick="applySuggestionFromChip(this)">${esc(s.name)}</span>`).join('')
+      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo y presioná ↵</span>`;
   }
+}
+
+function applySuggestionFromChip(el){
+  const pid = parseInt(el.dataset.pid);
+  const name = el.dataset.name;
+  applySuggestion(pid, name);
 }
 
 function clearTeam(pid){
@@ -915,13 +924,18 @@ async function onTeamEdit(pid, input){
     if(tchips) tchips.innerHTML='';
     return;
   }
-  // Mostrar chips filtrados de la liga
   const filtered = getLeagueTeams(S.league).filter(t=>t.toLowerCase().includes(val.toLowerCase())).slice(0,5);
   if(tchips){
     tchips.innerHTML = filtered.map(t=>
-      `<span class="norm-team-chip" onclick="selectTeam(${pid},'${esc(t)}')">${esc(t)}</span>`
+      `<span class="norm-team-chip" data-pid="${pid}" data-team="${esc(t)}" onclick="selectTeamFromChip(this)">${esc(t)}</span>`
     ).join('');
   }
+}
+
+function selectTeamFromChip(el){
+  const pid = parseInt(el.dataset.pid);
+  const team = el.dataset.team;
+  selectTeam(pid, team);
 }
 
 function onNormInput(pid, input){
