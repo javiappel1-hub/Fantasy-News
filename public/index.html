@@ -669,9 +669,9 @@ function getLeagueTeams(league){
 
 const squadCache = {};
 const SQUAD_MOCK = {
-  'river plate':[{name:'Franco Armani'},{name:'Jeremías Ledesma'},{name:'Aníbal Moreno'},{name:'Marcos Acuña'},{name:'Franco Mastantuono'},{name:'Miguel Borja'},{name:'Pablo Solari'},{name:'Nicolás De La Cruz'},{name:'Enzo Díaz'},{name:'Santiago Simón'}],
-  'boca juniors':[{name:'Sergio Romero'},{name:'Kevin Zenón'},{name:'Edinson Cavani'},{name:'Lautaro Blanco'},{name:'Milton Giménez'},{name:'Cristian Medina'},{name:'Pol Fernández'},{name:'Gary Medel'},{name:'Marcos Rojo'},{name:'Lucas Blondel'}],
-  'racing club':[{name:'Adrián Martínez'},{name:'Marco Di Cesare'},{name:'Gonzalo Martínez'},{name:'Roger Martínez'},{name:'Valentín Carboni'},{name:'Gastón Martirena'},{name:'Facundo Cambeses'},{name:'Bruno Zuculini'},{name:'Agustín García Basso'}],
+  'river plate':[{name:'Franco Armani'},{name:'Jeremías Ledesma'},{name:'Aníbal Moreno'},{name:'Marcos Acuña'},{name:'Franco Mastantuono'},{name:'Miguel Borja'},{name:'Pablo Solari'},{name:'Nicolás De La Cruz'},{name:'Enzo Díaz'},{name:'Santiago Simón'},{name:'Ignacio Fernández'},{name:'Ezequiel Barco'},{name:'Facundo Colidio'},{name:'Matías Kranevitter'},{name:'Gonzalo Montiel'},{name:'Milton Casco'},{name:'Lucas Martínez Quarta'},{name:'Paulo Díaz'},{name:'David Martínez'},{name:'Rodrigo Aliendro'}],
+  'boca juniors':[{name:'Sergio Romero'},{name:'Leandro Brey'},{name:'Juan Barinaga'},{name:'Kevin Zenón'},{name:'Edinson Cavani'},{name:'Lautaro Blanco'},{name:'Milton Giménez'},{name:'Cristian Medina'},{name:'Pol Fernández'},{name:'Gary Medel'},{name:'Marcos Rojo'},{name:'Lucas Blondel'},{name:'Aaron Molinas'},{name:'Exequiel Zeballos'},{name:'Brian Aguirre'},{name:'Lucas Figal'},{name:'Marcelo Saracchi'},{name:'Frank Fabra'},{name:'Santiago Sosa'},{name:'Tomás Belmonte'}],
+  'racing club':[{name:'Adrián Martínez'},{name:'Marco Di Cesare'},{name:'Gonzalo Martínez'},{name:'Roger Martínez'},{name:'Valentín Carboni'},{name:'Gastón Martirena'},{name:'Facundo Cambeses'},{name:'Bruno Zuculini'},{name:'Agustín García Basso'},{name:'Juan Nardoni'},{name:'Iván Pillud'},{name:'Maximiliano Sosa'},{name:'Tomás Chancalay'},{name:'Gabriel Hauche'},{name:'Emiliano Vecchio'}],
   'independiente':[{name:'Lucas González'},{name:'Tomás Pozzo'},{name:'Iván Marcone'},{name:'Leandro Fernández'},{name:'Rodrigo Cabral'}],
   'san lorenzo':[{name:'Alexis Cuello'},{name:'Nahuel Barrios'},{name:'Adam Bareiro'},{name:'Gastón Campi'},{name:'Pablo Deveas'}],
   "newell's old boys":[{name:'Alan Aguerre'},{name:'Gabriel Árias'},{name:'Guillermo Ortiz'},{name:'Ramiro Sordo'},{name:'Gustavo Velázquez'}],
@@ -704,14 +704,22 @@ async function fetchSquad(team, league){
 
 function matchSuggestions(squad, rawName){
   if(!squad.length) return squad.slice(0,5);
-  const parts = rawName.trim().split(/\s+/);
-  const search = parts[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const search = rawName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   if(search.length < 2) return squad.slice(0,5);
-  const filtered = squad.filter(p => {
+
+  // Buscar en cualquier parte del nombre
+  const scored = squad.map(p=>{
     const pn = (p.name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    return pn.includes(search);
-  });
-  return filtered.length ? filtered.slice(0,5) : squad.slice(0,5);
+    // Puntuación: coincidencia exacta > inicio de palabra > contiene
+    let score = 0;
+    if(pn === search) score = 100;
+    else if(pn.startsWith(search)) score = 80;
+    else if(pn.split(' ').some(w=>w.startsWith(search))) score = 60;
+    else if(pn.includes(search)) score = 40;
+    return { p, score };
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+
+  return scored.length ? scored.slice(0,5).map(x=>x.p) : squad.slice(0,5);
 }
 
 async function showNormalization(){
