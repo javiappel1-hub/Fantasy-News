@@ -667,13 +667,34 @@ function getLeagueTeams(league){
   return teams[league] || [];
 }
 
+const squadCache = {};
+const SQUAD_MOCK = {
+  'river plate':[{name:'Franco Armani'},{name:'Jeremías Ledesma'},{name:'Aníbal Moreno'},{name:'Marcos Acuña'},{name:'Franco Mastantuono'},{name:'Miguel Borja'},{name:'Pablo Solari'},{name:'Nicolás De La Cruz'},{name:'Enzo Díaz'},{name:'Santiago Simón'}],
+  'boca juniors':[{name:'Sergio Romero'},{name:'Kevin Zenón'},{name:'Edinson Cavani'},{name:'Lautaro Blanco'},{name:'Milton Giménez'},{name:'Cristian Medina'},{name:'Pol Fernández'},{name:'Gary Medel'},{name:'Marcos Rojo'},{name:'Lucas Blondel'}],
+  'racing club':[{name:'Adrián Martínez'},{name:'Marco Di Cesare'},{name:'Gonzalo Martínez'},{name:'Roger Martínez'},{name:'Valentín Carboni'},{name:'Gastón Martirena'},{name:'Facundo Cambeses'},{name:'Bruno Zuculini'},{name:'Agustín García Basso'}],
+  'independiente':[{name:'Lucas González'},{name:'Tomás Pozzo'},{name:'Iván Marcone'},{name:'Leandro Fernández'},{name:'Rodrigo Cabral'}],
+  'san lorenzo':[{name:'Alexis Cuello'},{name:'Nahuel Barrios'},{name:'Adam Bareiro'},{name:'Gastón Campi'},{name:'Pablo Deveas'}],
+  "newell's old boys":[{name:'Alan Aguerre'},{name:'Gabriel Árias'},{name:'Guillermo Ortiz'},{name:'Ramiro Sordo'},{name:'Gustavo Velázquez'}],
+  "newell's":[{name:'Alan Aguerre'},{name:'Gabriel Árias'},{name:'Guillermo Ortiz'},{name:'Ramiro Sordo'}],
+  'rosario central':[{name:'Gaspar Servio'},{name:'Marco Ruben'},{name:'Alejo Véliz'},{name:'Jhonatan Canales'}],
+  'liverpool':[{name:'Caoimhin Kelleher'},{name:'Alisson Becker'},{name:'Virgil van Dijk'},{name:'Mohamed Salah'},{name:'Luis Díaz'},{name:'Darwin Núñez'},{name:'Cody Gakpo'},{name:'Trent Alexander-Arnold'},{name:'Ryan Gravenberch'}],
+  'arsenal':[{name:'David Raya'},{name:'Bukayo Saka'},{name:'Martin Ødegaard'},{name:'William Saliba'},{name:'Jurriën Timber'},{name:'Kai Havertz'},{name:'Declan Rice'},{name:'Gabriel Martinelli'},{name:'Leandro Trossard'}],
+  'real madrid':[{name:'Thibaut Courtois'},{name:'Vinicius Jr.'},{name:'Kylian Mbappé'},{name:'Jude Bellingham'},{name:'Luka Modrić'},{name:'Federico Valverde'},{name:'Éder Militão'},{name:'Dani Carvajal'},{name:'Rodrygo'}],
+  'barcelona':[{name:'Marc-André ter Stegen'},{name:'Robert Lewandowski'},{name:'Pedri'},{name:'Lamine Yamal'},{name:'Raphinha'},{name:'Frenkie de Jong'},{name:'Gavi'},{name:'Jules Koundé'},{name:'Ronald Araújo'}],
+};
+
 async function fetchSquad(team, league){
   const key = `${team}-${league}`;
   if(squadCache[key]) return squadCache[key];
+  // Mock local — funciona sin backend
+  const tl = (team||'').toLowerCase();
+  const mk = Object.keys(SQUAD_MOCK).find(k=>tl.includes(k)||k.includes(tl.split(' ')[0]));
+  if(mk){ squadCache[key]=SQUAD_MOCK[mk]; return SQUAD_MOCK[mk]; }
+  // Intentar ESPN si hay backend
   try{
-    const r = await fetch(`${API_BASE}/api/squad?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}`);
-    const d = await r.json();
-    squadCache[key] = d.players || [];
+    const r=await fetch(`${API_BASE}/api/squad?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}`);
+    const d=await r.json();
+    squadCache[key]=d.players||[];
     return squadCache[key];
   }catch(e){ return []; }
 }
