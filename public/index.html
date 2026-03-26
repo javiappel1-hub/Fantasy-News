@@ -688,27 +688,20 @@ async function showNormalization(){
   document.getElementById('gridScr').style.display='none';
   document.getElementById('detailScr').classList.remove('visible');
   document.getElementById('normScr').style.display='block';
-  status('CARGANDO PLANTELES…');
+  status('REVISÁ LOS NOMBRES');
 
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};
   const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
   const needsReview = sorted.filter(p=>!isNameComplete(p.name) || !p.team).length;
   document.getElementById('normBadge').textContent = needsReview > 0 ? `${needsReview} para revisar` : '✓ Todo OK';
 
-  // Buscar planteles de equipos detectados
-  const teamsToFetch = [...new Set(sorted.map(p=>p.team).filter(Boolean))];
-  await Promise.all(teamsToFetch.map(async team => {
-    squadCache[`${team}-${S.league}`] = await fetchSquad(team, S.league);
-  }));
-
   const posCss={POR:'pos-POR',DEF:'pos-DEF',MED:'pos-MED',DEL:'pos-DEL'};
 
+  // Renderizar inmediatamente sin esperar planteles
   document.getElementById('normList').innerHTML = sorted.map(p=>{
     const complete = isNameComplete(p.name);
     const hasTeam = !!p.team;
     const teamConfidence = p.teamConfidence || (hasTeam ? 'high' : 'none');
-    const squad = hasTeam ? (squadCache[`${p.team}-${S.league}`] || []) : [];
-    const suggestions = !complete && squad.length ? matchSuggestions(squad, p.name) : [];
 
     const teamHtml = hasTeam
       ? `<div class="meta-team-label">Equipo${teamConfidence==='low'?` <span style="color:#b85000">· estimado del logo</span>`:''}</div>
@@ -722,11 +715,9 @@ async function showNormalization(){
            ).join('')
          }</div>`;
 
-    const chipsHtml = suggestions.length
-      ? `<div class="norm-suggestions" id="nsug-${p.id}">${suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${p.id},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')}</div>`
-      : !complete && hasTeam
-        ? `<div class="norm-suggestions" id="nsug-${p.id}"><span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span></div>`
-        : `<div class="norm-suggestions" id="nsug-${p.id}"></div>`;
+    const chipsHtml = !complete && hasTeam
+      ? `<div class="norm-suggestions" id="nsug-${p.id}"><span style="font-size:10px;color:var(--muted)">Cargando sugerencias...</span></div>`
+      : `<div class="norm-suggestions" id="nsug-${p.id}"></div>`;
 
     const rowClass = !hasTeam ? 'norm-row no-team-row' : !complete ? 'norm-row needs-review' : 'norm-row';
 
@@ -746,7 +737,23 @@ async function showNormalization(){
       <div class="norm-status" id="nst-${p.id}">${complete && hasTeam?'✓':'⚠'}</div>
     </div>`;
   }).join('');
-  status('REVISÁ LOS NOMBRES');
+
+  // Cargar planteles en background y actualizar chips cuando lleguen
+  const teamsToFetch = [...new Set(sorted.map(p=>p.team).filter(Boolean))];
+  teamsToFetch.forEach(async team => {
+    const squad = await fetchSquad(team, S.league);
+    squadCache[`${team}-${S.league}`] = squad;
+    // Actualizar chips de jugadores de este equipo
+    sorted.filter(p=>p.team===team && !isNameComplete(p.name)).forEach(p=>{
+      const suggestions = matchSuggestions(squad, p.name);
+      const el = document.getElementById(`nsug-${p.id}`);
+      if(el){
+        el.innerHTML = suggestions.length
+          ? suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${p.id},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')
+          : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
+      }
+    });
+  });
 }
 
 async function selectTeam(pid, teamName){
