@@ -34,17 +34,17 @@ export default async function handler(req, res) {
           role: 'user',
           content: [...imgBlocks, {
             type: 'text',
-            text: `Estas son capturas de un equipo de fantasy fútbol (Biwenger u otra plataforma).
+            text: `Estas son capturas de un equipo de fantasy fútbol (Biwenger, Fantasy Premier League u otra plataforma).
 
-Tu tarea:
-1. Extraé TODOS los jugadores visibles
-2. Para el campo "team": buscá el nombre del club en el texto O identificá el escudo/logo del equipo si aparece en la imagen
-3. Para el campo "name": escribí el nombre exactamente como aparece — si está abreviado (ej: "Martinez A", "Di Cé...") escribilo tal cual, NO lo completes
-4. Para el campo "nameComplete": true si el nombre tiene al menos nombre y apellido completos, false si está abreviado o truncado
-5. Para el campo "teamConfidence": "high" si estás seguro del equipo, "low" si lo inferiste del logo o no estás seguro, "none" si no encontraste el equipo
+INSTRUCCIONES CRÍTICAS:
+1. Extraé TODOS los jugadores visibles en la imagen
+2. Para "team": es OBLIGATORIO identificar el club. Buscá en el texto de la imagen, en los escudos/logos, en los colores de camiseta, o inferilo por el contexto. Si ves "LIV" = Liverpool, "ARS" = Arsenal, "BOU" = Bournemouth, "FUL" = Fulham, "NEW" = Newcastle, etc. NUNCA dejes team en null si hay alguna pista visual.
+3. Para "name": escribí el nombre EXACTAMENTE como aparece en la imagen, aunque esté abreviado
+4. Para "nameComplete": true si tiene nombre Y apellido completos, false si está abreviado, truncado o es solo apellido
+5. Para "teamConfidence": "high" si lo leíste claramente del texto, "low" si lo inferiste del logo/abreviatura/colores, "none" solo si absolutamente no hay ninguna pista
 
 Devolvé SOLO array JSON sin texto extra ni markdown:
-[{"name":"nombre como aparece","nameComplete":true,"team":"club o null","teamConfidence":"high/low/none","position":"POR/DEF/MED/DEL","price":"precio o null","points":"puntos o null"}]`
+[{"name":"nombre como aparece","nameComplete":true,"team":"nombre completo del club","teamConfidence":"high/low/none","position":"POR/DEF/MED/DEL","price":"precio o null","points":"puntos o null"}]`
           }]
         }]
       })
