@@ -111,46 +111,62 @@ main{display:flex;flex-direction:column;overflow:hidden}
 
 /* NORMALIZATION SCREEN */
 .norm-scr{display:none;flex:1;overflow-y:auto;padding:24px 28px;background:var(--bg)}
-.norm-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+
+/* Progress bar */
+.norm-prog{margin-bottom:24px}
+.norm-prog-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
 .norm-title{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.5px}
-.norm-sub{font-size:12px;color:var(--muted);margin-top:4px}
-.norm-badge{font-family:var(--fm);font-size:10px;background:#fff8e6;border:1px solid #ffe0a0;color:#8a5000;padding:5px 12px;border-radius:20px;font-weight:600}
-.norm-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
-.norm-row{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:34px 130px 1fr 28px;align-items:center;gap:12px}
-.norm-row.needs-review{border-left:3px solid #f0a500;border-radius:0 10px 10px 0}
+.norm-prog-count{font-size:12px;color:var(--muted);font-family:var(--fm)}
+.norm-prog-track{height:6px;background:var(--border);border-radius:6px;overflow:hidden}
+.norm-prog-fill{height:100%;background:var(--accent);border-radius:6px;transition:width .4s ease}
+
+/* Section labels */
+.norm-section-label{font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase;font-weight:600;margin:16px 0 8px}
+
+/* Player cards — needs attention */
+.norm-pcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;transition:all .2s}
+.norm-pcard.done{border-color:#00b87a;background:#f8fdf8}
+.norm-pcard-top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .norm-pos{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:9px;font-weight:700;flex-shrink:0}
-.norm-row.no-team-row{border-left:3px solid #e8333a;border-radius:0 10px 10px 0}
-.norm-meta{display:flex;flex-direction:column;gap:4px;min-width:0}
-.norm-detected{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.norm-team-wrap{display:flex;flex-direction:column;gap:2px;margin-top:2px}
-.norm-team-label{font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--muted2);text-transform:uppercase;font-weight:600}
-.norm-team-val{font-size:11px;color:var(--muted)}
-.team-edit{font-size:11px;padding:3px 8px;border-radius:6px;border:1.5px solid #e8333a;background:#fff0f0;color:var(--text);outline:none;width:100%;transition:border-color .2s;margin-bottom:4px}
-.team-edit.filled{border-color:#00b87a;background:#f0fdf8}
-.team-edit-hint{font-size:9px;color:#c00020;margin-top:1px}
-.norm-team-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
-.norm-team-chip{font-size:10px;padding:2px 8px;border-radius:20px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--muted);cursor:pointer;transition:all .12s;white-space:nowrap}
-.norm-team-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
-.norm-team-chip.selected{border-color:#00b87a;color:#007a50;background:#e8f9f2}
-.norm-team-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
-.norm-team-chip{font-size:10px;padding:2px 8px;border-radius:20px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .12s;font-weight:500}
-.norm-team-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
-.norm-field{display:flex;flex-direction:column;gap:3px}
+.norm-pcard-info{flex:1}
+.norm-pcard-name{font-size:14px;font-weight:700;color:var(--text)}
+.norm-pcard-team{font-size:11px;color:var(--muted);margin-top:1px}
+.norm-done-badge{font-size:10px;color:#007a50;background:#e8f9f2;padding:2px 8px;border-radius:20px;border:1px solid #b8e8d4;font-weight:600}
+.norm-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.norm-field{display:flex;flex-direction:column;gap:5px}
 .norm-field label{font-family:var(--fm);font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase;font-weight:600}
-.norm-field input{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);padding:7px 10px;font-family:var(--fn);font-size:13px;border-radius:8px;outline:none;transition:border-color .2s;width:100%}
-.norm-field input:focus{border-color:var(--accent);background:#fff}
-.norm-field input.ok{border-color:#00b87a}
+.norm-field input{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);padding:8px 10px;font-family:var(--fn);font-size:12px;border-radius:8px;outline:none;transition:border-color .2s;width:100%}
+.norm-field input:focus{border-color:var(--accent)}
+.norm-field input.ok{border-color:#00b87a;background:#f0fdf8}
 .norm-field input.warn{border-color:#f0a500}
-.norm-status{font-size:16px;text-align:center}
-.norm-suggestions{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
-.norm-sug-item{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .12s;font-weight:500}
-.norm-sug-item:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
-.norm-sug-item.selected{border-color:#00b87a;color:#007a50;background:#e8f9f2}
-.norm-team-chip.selected{border-color:#00b87a;color:#007a50;background:#e8f9f2;cursor:pointer}
-.norm-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
-.norm-hint{font-size:11px;color:var(--muted);max-width:340px;line-height:1.6}
-.btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;transition:all .15s;display:flex;align-items:center;gap:6px}
-.btn-norm-confirm:hover{background:var(--accent-dark);transform:translateY(-1px)}
+.norm-field input.missing{border-color:#e8333a;background:#fff0f0}
+.norm-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.norm-chip{font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .12s;font-weight:500}
+.norm-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.norm-chip.sel{border-color:#00b87a;color:#007a50;background:#e8f9f2}
+
+/* OK strip */
+.norm-ok-strip{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:4px}
+.norm-ok-left{display:flex;align-items:center;gap:8px}
+.norm-ok-badge{font-size:10px;color:#007a50;background:#e8f9f2;padding:2px 8px;border-radius:20px;border:1px solid #b8e8d4;font-weight:600}
+.norm-ok-text{font-size:12px;color:var(--muted)}
+.norm-ok-pills{display:flex;flex-wrap:wrap;gap:5px;padding:8px 14px 4px}
+.norm-ok-pill{font-size:11px;padding:2px 10px;border-radius:20px;background:#e8f9f2;color:#007a50;border:1px solid #b8e8d4}
+
+/* Footer */
+.norm-footer-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:12px;flex-wrap:wrap}
+.norm-footer-info{font-size:12px;color:var(--muted)}
+.norm-footer-info b{color:var(--text)}
+.btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;transition:all .15s}
+.btn-norm-confirm:hover{background:var(--accent-dark)}
+.btn-norm-confirm:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* reuse pos colors */
+.norm-pos.pos-POR{background:#e8f4ff;color:#0066cc;border:1px solid #b8d8ff}
+.norm-pos.pos-DEF{background:#e8f9f2;color:#007a50;border:1px solid #b8e8d4}
+.norm-pos.pos-MED{background:#fff3e0;color:#b85000;border:1px solid #ffd8a8}
+.norm-pos.pos-DEL{background:#fff0f0;color:#c00020;border:1px solid #ffb8b8}
+.norm-badge{display:none}
 
 /* GRID */
 .players-grid-scr{display:none;flex:1;overflow-y:auto;padding:24px 28px}
@@ -359,20 +375,20 @@ main{display:flex;flex-direction:column;overflow:hidden}
   </div>
 
   <div class="norm-scr" id="normScr">
-    <div class="norm-hdr">
-      <div>
+    <div class="norm-prog">
+      <div class="norm-prog-top">
         <div class="norm-title">Confirmá los nombres</div>
-        <div class="norm-sub">Editá los abreviados para mejorar la búsqueda de noticias</div>
+        <div class="norm-prog-count" id="normProgCount">0 de 0 listos</div>
       </div>
-      <span class="norm-badge" id="normBadge"></span>
+      <div class="norm-prog-track"><div class="norm-prog-fill" id="normProgFill" style="width:0%"></div></div>
     </div>
-    <div class="norm-list" id="normList"></div>
-    <div class="norm-footer">
-      <div class="norm-hint">Los marcados con ⚠ tienen nombres abreviados o truncados — completalos con el nombre completo del jugador</div>
-      <button class="btn-norm-confirm" onclick="confirmNormalization()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Confirmar y buscar noticias
-      </button>
+    <div class="norm-section-label" id="normPendingLabel" style="display:none">Necesitan atención</div>
+    <div id="normPendingList"></div>
+    <div class="norm-section-label" id="normOkLabel" style="display:none">Listos</div>
+    <div id="normOkStrip"></div>
+    <div class="norm-footer-bar">
+      <div class="norm-footer-info"><b id="normDoneN">0</b> de <b id="normTotalN">0</b> jugadores listos</div>
+      <button class="btn-norm-confirm" id="btnNormConfirm" onclick="confirmNormalization()" disabled>Buscar noticias →</button>
     </div>
   </div>
 
@@ -761,73 +777,119 @@ async function showNormalization(){
 
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};
   const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
-  const needsReview = sorted.filter(p=>!isNameComplete(p.name) || !p.team).length;
-  document.getElementById('normBadge').textContent = needsReview > 0 ? `${needsReview} para revisar` : '✓ Todo OK';
+
+  // Separar en pendientes y listos
+  const pending = sorted.filter(p=>!isNameComplete(p.name) || !p.team);
+  const ready   = sorted.filter(p=> isNameComplete(p.name) && p.team);
+
+  const total = sorted.length;
+  let doneCount = ready.length;
+
+  function updateProgress(){
+    const pct = Math.round(doneCount/total*100);
+    document.getElementById('normProgFill').style.width = pct+'%';
+    document.getElementById('normProgCount').textContent = `${doneCount} de ${total} listos`;
+    document.getElementById('normDoneN').textContent = doneCount;
+    document.getElementById('normTotalN').textContent = total;
+    const btn = document.getElementById('btnNormConfirm');
+    btn.disabled = doneCount < total;
+    // Update OK strip
+    const okLabel = document.getElementById('normOkLabel');
+    if(okLabel) okLabel.textContent = `Listos · ${doneCount}`;
+  }
+  window._normUpdateProgress = updateProgress;
+  window._normDoneCount = () => doneCount;
+  window._normIncrDone = () => { doneCount++; updateProgress(); };
 
   const posCss={POR:'pos-POR',DEF:'pos-DEF',MED:'pos-MED',DEL:'pos-DEL'};
 
-  document.getElementById('normList').innerHTML = sorted.map(p=>{
-    const complete = isNameComplete(p.name);
-    const hasTeam = !!p.team;
-    const teamConfidence = p.teamConfidence || (hasTeam ? 'high' : 'none');
+  // Render pending cards
+  const pendingLabel = document.getElementById('normPendingLabel');
+  const pendingList  = document.getElementById('normPendingList');
+  if(pending.length){
+    pendingLabel.style.display='block';
+    pendingList.innerHTML = pending.map(p=>{
+      const hasTeam = !!p.team;
+      const teamConf = p.teamConfidence || (hasTeam?'high':'none');
+      const teamFieldHtml = hasTeam
+        ? `<div class="norm-field">
+             <label>Equipo${teamConf==='low'?' · <span style="color:#b85000">estimado</span>':''}</label>
+             <input class="norm-field input ok" value="${esc(p.team)}" id="teaminp-${p.id}" oninput="onTeamEdit(${p.id},this)" style="background:var(--surface2);border:1.5px solid #00b87a;color:var(--text);padding:8px 10px;font-size:12px;border-radius:8px;outline:none;width:100%">
+             <div class="norm-chips" id="tchips-${p.id}">
+               <span class="norm-chip sel" onclick="clearTeam(${p.id})">${esc(p.team)} ✕</span>
+             </div>
+           </div>`
+        : `<div class="norm-field">
+             <label>Equipo <span style="color:#e8333a">· no detectado</span></label>
+             <input id="teaminp-${p.id}" placeholder="ej: Boca Juniors" oninput="onTeamEdit(${p.id},this)" style="background:#fff0f0;border:1.5px solid #e8333a;color:var(--text);padding:8px 10px;font-size:12px;border-radius:8px;outline:none;width:100%">
+             <div class="norm-chips" id="tchips-${p.id}"></div>
+           </div>`;
 
-    // Solo mostrar el chip del equipo detectado + input para cambiar
-    const teamChipHtml = hasTeam
-      ? `<div class="norm-team-chips" id="tchips-${p.id}">
-           <span class="norm-team-chip selected" id="tchip-${p.id}" onclick="clearTeam(${p.id})">${esc(p.team)} ✕</span>
-         </div>`
-      : `<div class="norm-team-chips" id="tchips-${p.id}"></div>`;
-
-    const teamHtml = hasTeam
-      ? `<div class="meta-team-label">Equipo${teamConfidence==='low'?` <span style="color:#b85000">· estimado del logo</span>`:''}</div>
-         ${teamChipHtml}`
-      : `<div class="meta-team-label">Equipo <span style="color:#c00020">· no detectado</span></div>
-         <input class="team-edit" id="teaminp-${p.id}" placeholder="ej: Liverpool"
-           oninput="onTeamEdit(${p.id},this)">
-         ${teamChipHtml}`;
-
-    const rowClass = !hasTeam ? 'norm-row no-team-row' : !complete ? 'norm-row needs-review' : 'norm-row';
-
-    return`<div class="${rowClass}" id="nrow-${p.id}" data-teamok="${hasTeam?'1':'0'}" data-nameok="${complete?'1':'0'}">
-      <div class="norm-pos ${posCss[p.position]||'pos-DEL'}">${esc(p.position)}</div>
-      <div class="norm-meta">
-        <div class="norm-detected">${esc(p.name)}</div>
-        <div class="norm-team-wrap">${teamHtml}</div>
-      </div>
-      <div class="norm-field">
-        <label>Nombre para buscar</label>
-        <input id="ninput-${p.id}" class="${complete?'ok':'warn'}" value="${esc(p.name)}"
-          placeholder="Nombre completo del jugador"
-          oninput="onNormInput(${p.id},this)">
-        <div class="norm-suggestions" id="nsug-${p.id}">
-          ${!complete && hasTeam ? `<span style="font-size:10px;color:var(--muted)">Cargando sugerencias...</span>` : ''}
+      return`<div class="norm-pcard" id="nrow-${p.id}" data-teamok="${hasTeam?'1':'0'}" data-nameok="0">
+        <div class="norm-pcard-top">
+          <div class="norm-pos ${posCss[p.position]||'pos-DEL'}">${esc(p.position)}</div>
+          <div class="norm-pcard-info">
+            <div class="norm-pcard-name">${esc(p.name)}</div>
+            <div class="norm-pcard-team">${hasTeam?esc(p.team):'equipo no detectado'}</div>
+          </div>
+          <span class="norm-done-badge" id="nst-${p.id}" style="display:none">✓ listo</span>
         </div>
+        <div class="norm-fields">
+          ${teamFieldHtml}
+          <div class="norm-field">
+            <label>Nombre para buscar</label>
+            <input id="ninput-${p.id}" class="${isNameComplete(p.name)?'ok':'warn'}" value="${esc(p.name)}"
+              placeholder="Nombre completo" oninput="onNormInput(${p.id},this)">
+            <div class="norm-chips" id="nsug-${p.id}">
+              ${hasTeam?`<span style="font-size:10px;color:var(--muted)">Cargando...</span>`:''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    pendingLabel.style.display='none';
+    pendingList.innerHTML='';
+  }
+
+  // Render OK strip
+  const okLabel = document.getElementById('normOkLabel');
+  const okStrip = document.getElementById('normOkStrip');
+  if(ready.length){
+    okLabel.style.display='block';
+    okStrip.innerHTML = `
+      <div class="norm-ok-strip" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='flex'?'none':'flex'">
+        <div class="norm-ok-left">
+          <span class="norm-ok-badge">${ready.length} listos</span>
+          <span class="norm-ok-text">${ready.slice(0,3).map(p=>p.name).join(', ')}${ready.length>3?'...':''}</span>
+        </div>
+        <span style="font-size:11px;color:var(--muted)">ver ▾</span>
       </div>
-      <div class="norm-status" id="nst-${p.id}">${complete && hasTeam?'✓':'⚠'}</div>
-    </div>`;
-  }).join('');
+      <div class="norm-ok-pills" style="display:none">
+        ${ready.map(p=>`<span class="norm-ok-pill">${esc(p.name)}</span>`).join('')}
+      </div>`;
+  } else {
+    okLabel.style.display='none';
+    okStrip.innerHTML='';
+  }
+
+  updateProgress();
 
   // Cargar planteles en background
   const teamsToFetch = [...new Set(sorted.map(p=>p.team).filter(Boolean))];
   teamsToFetch.forEach(async team => {
     const squad = await fetchSquad(team, S.league);
     squadCache[`${team}-${S.league}`] = squad;
-    sorted.filter(p=>p.team===team && !isNameComplete(p.name)).forEach(p=>{
+    pending.filter(p=>p.team===team).forEach(p=>{
       const suggestions = matchSuggestions(squad, p.name);
-      const el = document.getElementById(`nsug-${p.id}`);
-
-      // Si hay exactamente 1 sugerencia y el nombre tiene formato "Apellido X" → autocompletar
-      if(suggestions.length === 1 && isAbbreviatedName(p.name)){
+      if(suggestions.length===1 && isAbbreviatedName(p.name)){
         applySuggestion(p.id, suggestions[0].name);
-        if(el) el.innerHTML = `<span class="norm-sug-item selected" data-pid="${p.id}" data-name="${esc(suggestions[0].name)}" onclick="applySuggestionFromChip(this)">${esc(suggestions[0].name)} ✓ autocompletado</span>`;
         return;
       }
-
-      if(el){
-        el.innerHTML = suggestions.length
-          ? suggestions.map(s=>`<span class="norm-sug-item" data-pid="${p.id}" data-name="${esc(s.name)}" onclick="applySuggestionFromChip(this)">${esc(s.name)}</span>`).join('')
-          : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
-      }
+      const el = document.getElementById(`nsug-${p.id}`);
+      if(el) el.innerHTML = suggestions.length
+        ? suggestions.map(s=>`<span class="norm-chip" data-pid="${p.id}" data-name="${esc(s.name)}" onclick="applySuggestionFromChip(this)">${esc(s.name)}</span>`).join('')
+        : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí manualmente</span>`;
     });
   });
 }
@@ -913,18 +975,12 @@ function updateNormStatus(pid){
   if(!row) return;
   const teamOk = row.dataset.teamok==='1';
   const nameOk = row.dataset.nameok==='1';
-  const st = document.getElementById(`nst-${pid}`);
-  if(st) st.textContent = teamOk && nameOk ? '✓' : '⚠';
-  if(teamOk && nameOk){
-    row.classList.remove('needs-review','no-team-row');
+  const badge = document.getElementById(`nst-${pid}`);
+  if(teamOk && nameOk && !row.classList.contains('done')){
+    row.classList.add('done');
+    if(badge){ badge.style.display=''; }
+    if(window._normIncrDone) window._normIncrDone();
   }
-  // Update badge count
-  const total = document.querySelectorAll('[id^="nrow-"]').length;
-  const done = document.querySelectorAll('[id^="nst-"]');
-  const doneCount = [...done].filter(el=>el.textContent==='✓').length;
-  const pending = total - doneCount;
-  const badge = document.getElementById('normBadge');
-  if(badge){ badge.textContent = pending>0?`${pending} para revisar`:'✓ Todo OK'; }
 }
 
 function confirmNormalization(){
