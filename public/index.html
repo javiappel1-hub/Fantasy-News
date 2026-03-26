@@ -109,6 +109,31 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .step-n{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
 .step-t{font-size:11px;color:var(--muted);text-align:center;line-height:1.5}
 
+/* NORMALIZATION SCREEN */
+.norm-scr{display:none;flex:1;overflow-y:auto;padding:24px 28px;background:var(--bg)}
+.norm-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.norm-title{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.5px}
+.norm-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.norm-badge{font-family:var(--fm);font-size:10px;background:#fff8e6;border:1px solid #ffe0a0;color:#8a5000;padding:5px 12px;border-radius:20px;font-weight:600}
+.norm-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.norm-row{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:34px 130px 1fr 28px;align-items:center;gap:12px}
+.norm-row.needs-review{border-left:3px solid #f0a500;border-radius:0 10px 10px 0}
+.norm-pos{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:9px;font-weight:700;flex-shrink:0}
+.norm-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.norm-detected{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.norm-team{font-size:10px;color:var(--muted)}
+.norm-field{display:flex;flex-direction:column;gap:3px}
+.norm-field label{font-family:var(--fm);font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase;font-weight:600}
+.norm-field input{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);padding:7px 10px;font-family:var(--fn);font-size:13px;border-radius:8px;outline:none;transition:border-color .2s;width:100%}
+.norm-field input:focus{border-color:var(--accent);background:#fff}
+.norm-field input.ok{border-color:#00b87a}
+.norm-field input.warn{border-color:#f0a500}
+.norm-status{font-size:16px;text-align:center}
+.norm-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.norm-hint{font-size:11px;color:var(--muted);max-width:340px;line-height:1.6}
+.btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;transition:all .15s;display:flex;align-items:center;gap:6px}
+.btn-norm-confirm:hover{background:var(--accent-dark);transform:translateY(-1px)}
+
 /* GRID */
 .players-grid-scr{display:none;flex:1;overflow-y:auto;padding:24px 28px}
 .pgrid-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
@@ -312,6 +337,24 @@ main{display:flex;flex-direction:column;overflow:hidden}
       <div class="step"><div class="step-n">1</div><div class="step-t">Sacá capturas de tu equipo en Biwenger</div></div>
       <div class="step"><div class="step-n">2</div><div class="step-t">Subílas — la IA detecta los jugadores</div></div>
       <div class="step"><div class="step-n">3</div><div class="step-t">Las noticias se precargan solas</div></div>
+    </div>
+  </div>
+
+  <div class="norm-scr" id="normScr">
+    <div class="norm-hdr">
+      <div>
+        <div class="norm-title">Confirmá los nombres</div>
+        <div class="norm-sub">Editá los abreviados para mejorar la búsqueda de noticias</div>
+      </div>
+      <span class="norm-badge" id="normBadge"></span>
+    </div>
+    <div class="norm-list" id="normList"></div>
+    <div class="norm-footer">
+      <div class="norm-hint">Los marcados con ⚠ tienen nombres abreviados o truncados — completalos con el nombre completo del jugador</div>
+      <button class="btn-norm-confirm" onclick="confirmNormalization()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirmar y buscar noticias
+      </button>
     </div>
   </div>
 
@@ -554,11 +597,78 @@ async function doExtract(){
     if(!d.players?.length) throw new Error('No se detectaron jugadores en la imagen');
     S.players=d.players.map((p,i)=>({...p,id:i+1,price:p.price||'—',points:p.points||'—'}));
     S.playerNews={};
-    saveToStorage();
-    afterLoad();
-    toast(`✅ ${S.players.length} jugadores detectados`,'ok');
+    showNormalization();
+    toast(`✅ ${S.players.length} jugadores detectados — confirmá los nombres`,'ok');
   }catch(e){ toast(`⚠️ ${e.message}`,'err'); status('ERROR'); }
   finally{ btn.disabled=false; btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Extraer con IA`; }
+}
+
+function isNameComplete(name){
+  if(!name) return false;
+  const n = name.trim();
+  // Abreviado si: termina en inicial (A, B.), tiene "...", tiene solo 1 palabra, o es muy corto
+  if(n.endsWith('...') || n.includes('…')) return false;
+  if(/\s[A-Z]\.?$/.test(n)) return false; // termina en inicial
+  if(/^[A-Z][a-z]*\s[A-Z]$/.test(n)) return false; // Apellido + inicial
+  if(n.split(' ').length < 2) return false; // solo apellido
+  if(n.length < 6) return false;
+  return true;
+}
+
+function showNormalization(){
+  document.getElementById('welcomeScr').style.display='none';
+  document.getElementById('gridScr').style.display='none';
+  document.getElementById('detailScr').classList.remove('visible');
+  document.getElementById('normScr').style.display='block';
+
+  const posOrder={POR:0,DEF:1,MED:2,DEL:3};
+  const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
+  const needsReview = sorted.filter(p=>!isNameComplete(p.name)).length;
+
+  document.getElementById('normBadge').textContent = needsReview > 0
+    ? `${needsReview} para revisar`
+    : '✓ Todo OK';
+
+  const posCss={POR:'pos-POR',DEF:'pos-DEF',MED:'pos-MED',DEL:'pos-DEL'};
+  document.getElementById('normList').innerHTML = sorted.map(p=>{
+    const complete = isNameComplete(p.name);
+    return`<div class="norm-row${complete?'':' needs-review'}" id="nrow-${p.id}">
+      <div class="norm-pos ${posCss[p.position]||'pos-DEL'}">${esc(p.position)}</div>
+      <div class="norm-meta">
+        <div class="norm-detected">${esc(p.name)}</div>
+        <div class="norm-team">${esc(p.team||'—')}</div>
+      </div>
+      <div class="norm-field">
+        <label>Nombre para buscar</label>
+        <input id="ninput-${p.id}" class="${complete?'ok':'warn'}" value="${esc(p.name)}"
+          placeholder="Nombre completo del jugador"
+          oninput="onNormInput(${p.id},this)">
+      </div>
+      <div class="norm-status">${complete?'✓':'⚠'}</div>
+    </div>`;
+  }).join('');
+  status('REVISÁ LOS NOMBRES');
+}
+
+function onNormInput(pid, input){
+  const complete = isNameComplete(input.value);
+  input.className = complete ? 'ok' : 'warn';
+  const statusEl = input.closest('.norm-row').querySelector('.norm-status');
+  if(statusEl) statusEl.textContent = complete ? '✓' : '⚠';
+  const row = input.closest('.norm-row');
+  if(complete) row.classList.remove('needs-review');
+  else row.classList.add('needs-review');
+}
+
+function confirmNormalization(){
+  // Aplicar los nombres editados a S.players
+  S.players = S.players.map(p=>{
+    const input = document.getElementById(`ninput-${p.id}`);
+    return { ...p, name: input ? input.value.trim() || p.name : p.name };
+  });
+  saveToStorage();
+  document.getElementById('normScr').style.display='none';
+  afterLoad();
 }
 
 function loadDemo(){
@@ -600,7 +710,30 @@ function updateGridSub(done){
   status(done<total?`PRECARGANDO ${done}/${total}…`:'✓ LISTO');
 }
 
+// ── MODO DEMO (sin gastar tokens) ────────────────────────────────────────────
+const DEMO_MODE = false; // cambiá a true para probar sin API
+
+function mockNews(p) {
+  const competition = {AR:'Liga Profesional',UY:'fútbol uruguayo',GB:'Premier League',ES:'LaLiga',IT:'Serie A',DE:'Bundesliga',FR:'Ligue 1',BR:'Brasileirao',MX:'Liga MX',US:'MLS'}[S.league] || 'football';
+  const sources = S.league === 'GB' ? ['Sky Sports','BBC Sport','The Guardian','Evening Standard'] :
+                  S.league === 'ES' ? ['Marca','AS','Sport','Relevo'] :
+                  S.league === 'AR' ? ['Olé','TyC Sports','Infobae Deportes','La Nación'] :
+                  ['ESPN','BBC Sport','Sky Sports','Goal'];
+  const cats = ['general','injuries','lineups','transfers','suspensions'];
+  return Array.from({length:12}, (_,i) => ({
+    type:'web',
+    category: cats[i % cats.length],
+    source: sources[i % sources.length],
+    title: `${p.name} — noticia de prueba #${i+1} en ${competition}`,
+    excerpt: `Esta es una noticia simulada para probar el layout sin gastar tokens de la API. Jugador: ${p.name}, Equipo: ${p.team}.`,
+    url: `https://news.google.com/search?q=${encodeURIComponent(p.name)}`,
+    time: i < 3 ? `hace ${i+1}h` : i < 7 ? `hace ${i-1} días` : `hace ${i} días`,
+    minutesAgo: i < 3 ? (i+1)*60 : (i+1)*1440
+  }));
+}
+
 async function fetchNews(p){
+  if(DEMO_MODE) return mockNews(p);
   const league = S.league ? `&league=${encodeURIComponent(S.league)}` : '';
   const r=await fetch(`${API_BASE}/api/news?name=${encodeURIComponent(p.name)}&team=${encodeURIComponent(p.team||'')}${league}`);
   if(!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -633,6 +766,7 @@ function renderSidebar(){
 function showGrid(){
   document.getElementById('welcomeScr').style.display='none';
   document.getElementById('detailScr').classList.remove('visible');
+  document.getElementById('normScr').style.display='none';
   document.getElementById('gridScr').style.display='block';
   document.querySelectorAll('.player-row').forEach(r=>r.classList.remove('active'));
   S.current=null;
