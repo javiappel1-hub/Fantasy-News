@@ -5,74 +5,20 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { images } = req.body;
-
-  if (!images || !Array.isArray(images) || images.length === 0) {
-    return res.status(400).json({ error: 'No images provided' });
-  }
+  if (!images?.length) return res.status(400).json({ error: 'No images provided' });
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
-  }
+  if (!anthropicKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
 
   try {
     const imgBlocks = images.map(({ data, mediaType }) => ({
       type: 'image',
-      source: {
-        type: 'base64',
-        media_type: mediaType || 'image/jpeg',
-        data
-      }
+      source: { type: 'base64', media_type: mediaType || 'image/jpeg', data }
     }));
-
-    const promptText = `
-Estas son capturas de pantalla de un equipo de fantasy fútbol (Biwenger o similar).
-
-Tu tarea:
-- Detectar TODOS los jugadores visibles en las capturas.
-- Leer cada tarjeta de jugador visible.
-- Extraer solo información que realmente se vea en la imagen.
-- No inventar datos.
-- Si no podés leer un dato, usar null.
-
-Campos esperados por jugador:
-- name
-- team
-- position  (solo: POR, DEF, MED, DEL)
-- price
-- points
-
-Reglas:
-- Devuelve SOLO un array JSON válido.
-- No escribas explicación.
-- No escribas markdown.
-- No uses bloques de código.
-- Un jugador por objeto.
-- Si aparece abreviado, devolvelo como se ve en la captura.
-- Mantener el orden visual aproximado de izquierda a derecha y de arriba hacia abajo.
-
-Formato exacto:
-[
-  {
-    "name": "Ter Stegen",
-    "team": "Barcelona",
-    "position": "POR",
-    "price": "19M",
-    "points": "88"
-  }
-]
-
-Si no encontrás ningún jugador visible, devolvé:
-[]
-`.trim();
 
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -83,81 +29,37 @@ Si no encontrás ningún jugador visible, devolvé:
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1600,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              ...imgBlocks,
-              { type: 'text', text: promptText }
-            ]
-          }
-        ]
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: [...imgBlocks, {
+            type: 'text',
+            text: `Estas son capturas de un equipo de fantasy fútbol (Biwenger u otra plataforma).
+
+Tu tarea:
+1. Extraé TODOS los jugadores visibles
+2. Para el campo "team": buscá el nombre del club en el texto O identificá el escudo/logo del equipo si aparece en la imagen
+3. Para el campo "name": escribí el nombre exactamente como aparece — si está abreviado (ej: "Martinez A", "Di Cé...") escribilo tal cual, NO lo completes
+4. Para el campo "nameComplete": true si el nombre tiene al menos nombre y apellido completos, false si está abreviado o truncado
+5. Para el campo "teamConfidence": "high" si estás seguro del equipo, "low" si lo inferiste del logo o no estás seguro, "none" si no encontraste el equipo
+
+Devolvé SOLO array JSON sin texto extra ni markdown:
+[{"name":"nombre como aparece","nameComplete":true,"team":"club o null","teamConfidence":"high/low/none","position":"POR/DEF/MED/DEL","price":"precio o null","points":"puntos o null"}]`
+          }]
+        }]
       })
     });
 
-    if (!r.ok) {
-      const errText = await r.text();
-      throw new Error(`Anthropic extract error ${r.status}: ${errText}`);
-    }
-
     const d = await r.json();
-    const raw = d.content?.find((b) => b.type === 'text')?.text || '[]';
-
-    const cleaned = String(raw)
-      .replace(/```json\s*/gi, '')
-      .replace(/```\s*/gi, '')
-      .trim();
-
+    if (d.error) throw new Error(d.error.message || 'Anthropic error');
+    const raw = d.content?.find(b => b.type === 'text')?.text || '[]';
+    const cleaned = raw.replace(/```json\n?/gi, '').replace(/```\n?/gi, '').trim();
     const start = cleaned.indexOf('[');
     const end = cleaned.lastIndexOf(']');
-
-    if (start === -1 || end === -1 || end < start) {
-      throw new Error('Claude no devolvió un JSON array válido');
-    }
-
-    const parsed = JSON.parse(cleaned.slice(start, end + 1));
-
-    const players = Array.isArray(parsed)
-      ? parsed
-          .filter(Boolean)
-          .map((p) => ({
-            name: normalizeString(p.name),
-            team: normalizeNullable(p.team),
-            position: normalizePosition(p.position),
-            price: normalizeNullable(p.price),
-            points: normalizeNullable(p.points)
-          }))
-          .filter((p) => p.name)
-      : [];
+    const players = JSON.parse(cleaned.substring(start, end + 1));
 
     return res.status(200).json({ players });
   } catch (e) {
-    console.error('api/extract error:', e);
-    return res.status(500).json({ error: e.message || 'Unknown error' });
+    return res.status(500).json({ error: e.message });
   }
-}
-
-function normalizeString(value) {
-  const v = String(value || '').trim();
-  return v || null;
-}
-
-function normalizeNullable(value) {
-  const v = String(value ?? '').trim();
-  if (!v || v.toLowerCase() === 'null') return null;
-  return v;
-}
-
-function normalizePosition(value) {
-  const v = String(value || '').trim().toUpperCase();
-
-  if (['POR', 'DEF', 'MED', 'DEL'].includes(v)) return v;
-
-  if (v.includes('POR')) return 'POR';
-  if (v.includes('DEF')) return 'DEF';
-  if (v.includes('MED')) return 'MED';
-  if (v.includes('DEL')) return 'DEL';
-
-  return null;
 }
