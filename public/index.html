@@ -764,24 +764,41 @@ async function showNormalization(){
 async function selectTeam(pid, teamName){
   const p = S.players.find(x=>x.id===pid);
   if(p) p.team = teamName;
-  // Reemplazar input con chip seleccionado
-  const wrap = document.getElementById(`tchips-${pid}`);
-  const inp = document.getElementById(`teaminp-${pid}`);
-  if(inp) inp.style.display='none';
-  if(wrap) wrap.innerHTML = `<span class="norm-team-chip selected" onclick="clearTeam(${pid})">${esc(teamName)} ✕</span>`;
+
+  // Reemplazar input con chip verde
+  const teamWrap = document.getElementById(`nrow-${pid}`)?.querySelector('.norm-team-wrap');
+  if(teamWrap){
+    teamWrap.innerHTML = `<div class="meta-team-label">Equipo</div>
+      <div class="norm-team-chips" id="tchips-${pid}">
+        <span class="norm-team-chip selected" onclick="clearTeam(${pid})">${esc(teamName)} ✕</span>
+      </div>`;
+  }
+
+  // Quitar rojo, poner naranja si el nombre está incompleto
   const row = document.getElementById(`nrow-${pid}`);
-  if(row){ row.classList.remove('no-team-row'); row.classList.add('needs-review'); row.dataset.teamok='1'; }
+  if(row){
+    row.classList.remove('no-team-row');
+    row.dataset.teamok = '1';
+    const nameOk = row.dataset.nameok === '1';
+    if(!nameOk) row.classList.add('needs-review');
+  }
+
   updateNormStatus(pid);
-  // Buscar plantel y mostrar sugerencias de nombre
+
+  // Buscar plantel y mostrar chips de jugador
+  const nameInput = document.getElementById(`ninput-${pid}`);
+  const rawName = nameInput ? nameInput.value.trim() : '';
+  const sug = document.getElementById(`nsug-${pid}`);
+  if(sug) sug.innerHTML = `<span style="font-size:10px;color:var(--muted)">Buscando en el plantel...</span>`;
+
   const squad = await fetchSquad(teamName, S.league);
   squadCache[`${teamName}-${S.league}`] = squad;
-  const nameInput = document.getElementById(`ninput-${pid}`);
-  const suggestions = squad.length && nameInput ? matchSuggestions(squad, nameInput.value) : [];
-  const sug = document.getElementById(`nsug-${pid}`);
+
   if(sug){
+    const suggestions = squad.length ? matchSuggestions(squad, rawName) : [];
     sug.innerHTML = suggestions.length
       ? suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')
-      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
+      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias del plantel — escribí el nombre completo y presioná ↵</span>`;
   }
 }
 
@@ -834,25 +851,32 @@ function updateNormStatus(pid){
 }
 
 function confirmNormalization(){
-  // Verificar que todos tengan equipo y nombre
+  // Auto-aprobar jugadores con nombre completo y equipo detectado
+  S.players.forEach(p=>{
+    const row = document.getElementById(`nrow-${p.id}`);
+    if(!row) return;
+    const input = document.getElementById(`ninput-${p.id}`);
+    const currentName = input ? input.value.trim() : p.name;
+    if(isNameComplete(currentName) && p.team){
+      row.dataset.nameok = '1';
+      row.dataset.teamok = '1';
+    }
+  });
+
+  // Verificar que todos estén completos
   const incomplete = S.players.filter(p=>{
     const row = document.getElementById(`nrow-${p.id}`);
     return row && (row.dataset.teamok!=='1' || row.dataset.nameok!=='1');
   });
-  // Para jugadores con nombre completo y equipo detectado, marcarlos como ok
-  S.players.forEach(p=>{
-    const row = document.getElementById(`nrow-${p.id}`);
-    if(!row) return;
-    if(isNameComplete(p.name) && p.team) { row.dataset.nameok='1'; row.dataset.teamok='1'; }
-  });
-  const stillIncomplete = S.players.filter(p=>{
-    const row = document.getElementById(`nrow-${p.id}`);
-    return row && (row.dataset.teamok!=='1' || row.dataset.nameok!=='1');
-  });
-  if(stillIncomplete.length){
-    toast(`⚠️ Completá equipo y nombre de los ${stillIncomplete.length} jugadores marcados`,'err');
+
+  if(incomplete.length){
+    toast(`⚠️ Completá equipo y nombre de los ${incomplete.length} jugadores marcados`,'err');
+    // Hacer scroll al primero incompleto
+    const firstRow = document.getElementById(`nrow-${incomplete[0].id}`);
+    if(firstRow) firstRow.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
+
   // Aplicar nombres editados
   S.players = S.players.map(p=>{
     const input = document.getElementById(`ninput-${p.id}`);
@@ -882,10 +906,12 @@ async function onTeamEdit(pid, input){
 function onNormInput(pid, input){
   const complete = isNameComplete(input.value);
   input.className = complete ? 'ok' : 'warn';
-  const st = document.getElementById(`nst-${pid}`);
-  if(st) st.textContent = complete ? '✓' : '⚠';
   const row = document.getElementById(`nrow-${pid}`);
-  if(row){ row.dataset.nameok = complete ? '1' : '0'; if(complete) row.classList.remove('needs-review'); }
+  if(row){
+    row.dataset.nameok = complete ? '1' : '0';
+    if(complete) row.classList.remove('needs-review');
+    else if(row.dataset.teamok==='1') row.classList.add('needs-review');
+  }
   updateNormStatus(pid);
 }
 
