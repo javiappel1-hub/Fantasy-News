@@ -19,12 +19,23 @@ export default async function handler(req, res) {
     if (!searchRes.ok) throw new Error(`ESPN error ${searchRes.status}`);
     const searchData = await searchRes.json();
 
-    // Buscar el equipo por nombre
+    // Buscar el equipo por nombre — más flexible
     const teams = searchData?.sports?.[0]?.leagues?.[0]?.teams || [];
+    const teamLower = team.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const found = teams.find(t => {
-      const name = (t.team?.displayName || t.team?.name || '').toLowerCase();
-      const teamLower = team.toLowerCase();
-      return name.includes(teamLower) || teamLower.includes(name.split(' ')[0]);
+      const name = (t.team?.displayName || t.team?.name || '')
+        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const shortName = (t.team?.shortDisplayName || t.team?.abbreviation || '')
+        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      // Coincidencia exacta
+      if(name === teamLower) return true;
+      // El nombre del equipo contiene lo buscado
+      if(name.includes(teamLower)) return true;
+      // Lo buscado contiene el nombre corto
+      if(shortName && teamLower.includes(shortName)) return true;
+      // Todas las palabras del query aparecen en el nombre
+      const words = teamLower.split(' ').filter(w=>w.length>2);
+      return words.every(w => name.includes(w));
     });
 
     if (!found) {
