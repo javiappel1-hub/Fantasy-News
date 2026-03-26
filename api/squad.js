@@ -41,14 +41,30 @@ export default async function handler(req, res) {
     if (!rosterRes.ok) throw new Error(`ESPN roster error ${rosterRes.status}`);
     const rosterData = await rosterRes.json();
 
-    const players = (rosterData?.athletes || []).map(a => ({
+    // ESPN puede devolver athletes en distintos niveles
+    let athleteList = [];
+    if (Array.isArray(rosterData?.athletes)) {
+      // Puede ser array directo o array de grupos por posición
+      if (rosterData.athletes[0]?.items) {
+        // Estructura agrupada: [{position, items:[...athletes]}]
+        rosterData.athletes.forEach(group => {
+          if (Array.isArray(group.items)) athleteList.push(...group.items);
+        });
+      } else {
+        athleteList = rosterData.athletes;
+      }
+    } else if (Array.isArray(rosterData?.roster)) {
+      athleteList = rosterData.roster;
+    }
+
+    const players = athleteList.map(a => ({
       id: a.id,
-      name: a.displayName || a.fullName || a.shortName,
+      name: a.displayName || a.fullName || `${a.firstName} ${a.lastName}`.trim(),
       firstName: a.firstName || '',
       lastName: a.lastName || '',
       position: mapPosition(a.position?.abbreviation),
       number: a.jersey || '',
-    }));
+    })).filter(p => p.name);
 
     return res.status(200).json({ players, teamName, teamId, found: true });
 
