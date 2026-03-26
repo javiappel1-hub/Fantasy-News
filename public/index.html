@@ -145,6 +145,8 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .norm-suggestions{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
 .norm-sug-item{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .12s;font-weight:500}
 .norm-sug-item:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.norm-sug-item.selected{border-color:#00b87a;color:#007a50;background:#e8f9f2}
+.norm-team-chip.selected{border-color:#00b87a;color:#007a50;background:#e8f9f2;cursor:pointer}
 .norm-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
 .norm-hint{font-size:11px;color:var(--muted);max-width:340px;line-height:1.6}
 .btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;transition:all .15s;display:flex;align-items:center;gap:6px}
@@ -701,31 +703,29 @@ async function showNormalization(){
 
   const posCss={POR:'pos-POR',DEF:'pos-DEF',MED:'pos-MED',DEL:'pos-DEL'};
 
-  // Renderizar inmediatamente sin esperar planteles
   document.getElementById('normList').innerHTML = sorted.map(p=>{
     const complete = isNameComplete(p.name);
     const hasTeam = !!p.team;
     const teamConfidence = p.teamConfidence || (hasTeam ? 'high' : 'none');
 
-    // Chips de equipo — siempre mostrar opciones de la liga
-    const leagueTeams = getLeagueTeams(S.league).slice(0,8);
-    const teamChipsHtml = `<div class="norm-team-chips" id="tchips-${p.id}">${
-      leagueTeams.map(t=>`<span class="norm-team-chip${p.team===t?' selected':''}" onclick="selectTeam(${p.id},'${esc(t)}')">${esc(t)}</span>`).join('')
-    }</div>`;
+    // Solo mostrar el chip del equipo detectado + input para cambiar
+    const teamChipHtml = hasTeam
+      ? `<div class="norm-team-chips" id="tchips-${p.id}">
+           <span class="norm-team-chip selected" id="tchip-${p.id}" onclick="clearTeam(${p.id})">${esc(p.team)} ✕</span>
+         </div>`
+      : `<div class="norm-team-chips" id="tchips-${p.id}"></div>`;
 
     const teamHtml = hasTeam
       ? `<div class="meta-team-label">Equipo${teamConfidence==='low'?` <span style="color:#b85000">· estimado del logo</span>`:''}</div>
-         <input class="team-edit ${teamConfidence==='low'?'':'filled'}" id="teaminp-${p.id}" value="${esc(p.team)}"
-           oninput="onTeamEdit(${p.id},this)">
-         ${teamChipsHtml}`
+         ${teamChipHtml}`
       : `<div class="meta-team-label">Equipo <span style="color:#c00020">· no detectado</span></div>
          <input class="team-edit" id="teaminp-${p.id}" placeholder="ej: Liverpool"
            oninput="onTeamEdit(${p.id},this)">
-         ${teamChipsHtml}`;
+         ${teamChipHtml}`;
 
     const rowClass = !hasTeam ? 'norm-row no-team-row' : !complete ? 'norm-row needs-review' : 'norm-row';
 
-    return`<div class="${rowClass}" id="nrow-${p.id}">
+    return`<div class="${rowClass}" id="nrow-${p.id}" data-teamok="${hasTeam?'1':'0'}" data-nameok="${complete?'1':'0'}">
       <div class="norm-pos ${posCss[p.position]||'pos-DEL'}">${esc(p.position)}</div>
       <div class="norm-meta">
         <div class="norm-detected">${esc(p.name)}</div>
@@ -736,13 +736,15 @@ async function showNormalization(){
         <input id="ninput-${p.id}" class="${complete?'ok':'warn'}" value="${esc(p.name)}"
           placeholder="Nombre completo del jugador"
           oninput="onNormInput(${p.id},this)">
-        <div class="norm-suggestions" id="nsug-${p.id}"></div>
+        <div class="norm-suggestions" id="nsug-${p.id}">
+          ${!complete && hasTeam ? `<span style="font-size:10px;color:var(--muted)">Cargando sugerencias...</span>` : ''}
+        </div>
       </div>
-      <div class="norm-status" id="nst-${p.id}">${complete?'✓':'⚠'}</div>
+      <div class="norm-status" id="nst-${p.id}">${complete && hasTeam?'✓':'⚠'}</div>
     </div>`;
   }).join('');
 
-  // Cargar planteles en background y actualizar chips cuando lleguen
+  // Cargar planteles en background
   const teamsToFetch = [...new Set(sorted.map(p=>p.team).filter(Boolean))];
   teamsToFetch.forEach(async team => {
     const squad = await fetchSquad(team, S.league);
@@ -750,8 +752,10 @@ async function showNormalization(){
     sorted.filter(p=>p.team===team && !isNameComplete(p.name)).forEach(p=>{
       const suggestions = matchSuggestions(squad, p.name);
       const el = document.getElementById(`nsug-${p.id}`);
-      if(el && suggestions.length){
-        el.innerHTML = suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${p.id},'${esc(s.name)}')">${esc(s.name)}</span>`).join('');
+      if(el){
+        el.innerHTML = suggestions.length
+          ? suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${p.id},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')
+          : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
       }
     });
   });
@@ -760,16 +764,15 @@ async function showNormalization(){
 async function selectTeam(pid, teamName){
   const p = S.players.find(x=>x.id===pid);
   if(p) p.team = teamName;
+  // Reemplazar input con chip seleccionado
+  const wrap = document.getElementById(`tchips-${pid}`);
   const inp = document.getElementById(`teaminp-${pid}`);
-  if(inp){ inp.value = teamName; inp.className = 'team-edit filled'; }
-  // Mark selected chip
-  const tchips = document.getElementById(`tchips-${pid}`);
-  if(tchips) tchips.querySelectorAll('.norm-team-chip').forEach(c=>{
-    c.classList.toggle('selected', c.textContent === teamName);
-  });
+  if(inp) inp.style.display='none';
+  if(wrap) wrap.innerHTML = `<span class="norm-team-chip selected" onclick="clearTeam(${pid})">${esc(teamName)} ✕</span>`;
   const row = document.getElementById(`nrow-${pid}`);
-  if(row){ row.classList.remove('no-team-row'); row.classList.add('needs-review'); }
-  // Buscar plantel y mostrar sugerencias
+  if(row){ row.classList.remove('no-team-row'); row.classList.add('needs-review'); row.dataset.teamok='1'; }
+  updateNormStatus(pid);
+  // Buscar plantel y mostrar sugerencias de nombre
   const squad = await fetchSquad(teamName, S.league);
   squadCache[`${teamName}-${S.league}`] = squad;
   const nameInput = document.getElementById(`ninput-${pid}`);
@@ -782,47 +785,75 @@ async function selectTeam(pid, teamName){
   }
 }
 
-async function onTeamEdit(pid, input){
-  const val = input.value.trim();
-  const tchips = document.getElementById(`tchips-${pid}`);
-  // Filtrar chips de equipos según lo que se escribe
-  if(tchips){
-    const filtered = getLeagueTeams(S.league).filter(t=>t.toLowerCase().includes(val.toLowerCase())).slice(0,6);
-    tchips.style.display = filtered.length ? 'flex' : 'none';
-    tchips.innerHTML = filtered.map(t=>`<span class="norm-team-chip" onclick="selectTeam(${pid},'${esc(t)}')">${esc(t)}</span>`).join('');
-  }
-  if(val.length < 3) return;
+function clearTeam(pid){
   const p = S.players.find(x=>x.id===pid);
-  if(p) p.team = val;
-  input.className = 'team-edit filled';
-  const squad = await fetchSquad(val, S.league);
-  const nameInput = document.getElementById(`ninput-${pid}`);
-  const suggestions = squad.length && nameInput ? matchSuggestions(squad, nameInput.value) : [];
-  const chipsEl = document.getElementById(`nsug-${pid}`);
-  if(chipsEl && suggestions.length){
-    chipsEl.innerHTML = suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('');
+  if(p) p.team = null;
+  const wrap = document.getElementById(`tchips-${pid}`);
+  if(wrap) wrap.innerHTML = '';
+  // Mostrar input de nuevo
+  const teamWrap = document.getElementById(`nrow-${pid}`)?.querySelector('.norm-team-wrap');
+  if(teamWrap){
+    teamWrap.innerHTML = `<div class="meta-team-label">Equipo <span style="color:#c00020">· no detectado</span></div>
+      <input class="team-edit" id="teaminp-${pid}" placeholder="ej: Liverpool" oninput="onTeamEdit(${pid},this)">
+      <div class="norm-team-chips" id="tchips-${pid}"></div>`;
   }
+  const row = document.getElementById(`nrow-${pid}`);
+  if(row){ row.classList.add('no-team-row'); row.dataset.teamok='0'; }
+  updateNormStatus(pid);
 }
 
 function applySuggestion(pid, name){
   const input = document.getElementById(`ninput-${pid}`);
-  if(input){ input.value = name; onNormInput(pid, input); }
+  if(input){ input.value = name; input.className='ok'; }
   const sug = document.getElementById(`nsug-${pid}`);
-  if(sug) sug.style.display='none';
+  if(sug) sug.querySelectorAll('.norm-sug-item').forEach(el=>{
+    el.classList.toggle('selected', el.textContent===name);
+  });
+  const row = document.getElementById(`nrow-${pid}`);
+  if(row) row.dataset.nameok='1';
+  updateNormStatus(pid);
 }
 
-function onNormInput(pid, input){
-  const complete = isNameComplete(input.value);
-  input.className = complete ? 'ok' : 'warn';
-  const statusEl = input.closest('.norm-row').querySelector('.norm-status');
-  if(statusEl) statusEl.textContent = complete ? '✓' : '⚠';
-  const row = input.closest('.norm-row');
-  if(complete) row.classList.remove('needs-review');
-  else row.classList.add('needs-review');
+function updateNormStatus(pid){
+  const row = document.getElementById(`nrow-${pid}`);
+  if(!row) return;
+  const teamOk = row.dataset.teamok==='1';
+  const nameOk = row.dataset.nameok==='1';
+  const st = document.getElementById(`nst-${pid}`);
+  if(st) st.textContent = teamOk && nameOk ? '✓' : '⚠';
+  if(teamOk && nameOk){
+    row.classList.remove('needs-review','no-team-row');
+  }
+  // Update badge count
+  const total = document.querySelectorAll('[id^="nrow-"]').length;
+  const done = document.querySelectorAll('[id^="nst-"]');
+  const doneCount = [...done].filter(el=>el.textContent==='✓').length;
+  const pending = total - doneCount;
+  const badge = document.getElementById('normBadge');
+  if(badge){ badge.textContent = pending>0?`${pending} para revisar`:'✓ Todo OK'; }
 }
 
 function confirmNormalization(){
-  // Aplicar los nombres editados a S.players
+  // Verificar que todos tengan equipo y nombre
+  const incomplete = S.players.filter(p=>{
+    const row = document.getElementById(`nrow-${p.id}`);
+    return row && (row.dataset.teamok!=='1' || row.dataset.nameok!=='1');
+  });
+  // Para jugadores con nombre completo y equipo detectado, marcarlos como ok
+  S.players.forEach(p=>{
+    const row = document.getElementById(`nrow-${p.id}`);
+    if(!row) return;
+    if(isNameComplete(p.name) && p.team) { row.dataset.nameok='1'; row.dataset.teamok='1'; }
+  });
+  const stillIncomplete = S.players.filter(p=>{
+    const row = document.getElementById(`nrow-${p.id}`);
+    return row && (row.dataset.teamok!=='1' || row.dataset.nameok!=='1');
+  });
+  if(stillIncomplete.length){
+    toast(`⚠️ Completá equipo y nombre de los ${stillIncomplete.length} jugadores marcados`,'err');
+    return;
+  }
+  // Aplicar nombres editados
   S.players = S.players.map(p=>{
     const input = document.getElementById(`ninput-${p.id}`);
     return { ...p, name: input ? input.value.trim() || p.name : p.name };
@@ -830,6 +861,39 @@ function confirmNormalization(){
   saveToStorage();
   document.getElementById('normScr').style.display='none';
   afterLoad();
+}
+
+async function onTeamEdit(pid, input){
+  const val = input.value.trim();
+  const tchips = document.getElementById(`tchips-${pid}`);
+  if(val.length < 2){
+    if(tchips) tchips.innerHTML='';
+    return;
+  }
+  // Mostrar chips filtrados de la liga
+  const filtered = getLeagueTeams(S.league).filter(t=>t.toLowerCase().includes(val.toLowerCase())).slice(0,5);
+  if(tchips){
+    tchips.innerHTML = filtered.map(t=>
+      `<span class="norm-team-chip" onclick="selectTeam(${pid},'${esc(t)}')">${esc(t)}</span>`
+    ).join('');
+  }
+}
+
+function onNormInput(pid, input){
+  const complete = isNameComplete(input.value);
+  input.className = complete ? 'ok' : 'warn';
+  const st = document.getElementById(`nst-${pid}`);
+  if(st) st.textContent = complete ? '✓' : '⚠';
+  const row = document.getElementById(`nrow-${pid}`);
+  if(row){ row.dataset.nameok = complete ? '1' : '0'; if(complete) row.classList.remove('needs-review'); }
+  updateNormStatus(pid);
+}
+
+function applySuggestion(pid, name){
+  const input = document.getElementById(`ninput-${pid}`);
+  if(input){ input.value = name; onNormInput(pid, input); }
+  const sug = document.getElementById(`nsug-${pid}`);
+  if(sug) sug.style.display='none';
 }
 
 function loadDemo(){
