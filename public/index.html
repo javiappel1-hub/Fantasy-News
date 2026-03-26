@@ -128,6 +128,9 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .team-edit{font-size:11px;padding:3px 8px;border-radius:6px;border:1.5px solid #e8333a;background:#fff0f0;color:var(--text);outline:none;width:100%;transition:border-color .2s}
 .team-edit.filled{border-color:#00b87a;background:#f0fdf8}
 .team-edit-hint{font-size:9px;color:#c00020;margin-top:1px}
+.norm-team-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.norm-team-chip{font-size:10px;padding:2px 8px;border-radius:20px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .12s;font-weight:500}
+.norm-team-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
 .norm-field{display:flex;flex-direction:column;gap:3px}
 .norm-field label{font-family:var(--fm);font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase;font-weight:600}
 .norm-field input{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);padding:7px 10px;font-family:var(--fn);font-size:13px;border-radius:8px;outline:none;transition:border-color .2s;width:100%}
@@ -630,8 +633,33 @@ function isNameComplete(name){
   return true;
 }
 
-// Cache de planteles ya buscados
-const squadCache = {};
+// Sugiere equipos probables dado el nombre de un jugador usando Google
+async function suggestTeams(playerName, league){
+  try{
+    const r = await fetch(`${API_BASE}/api/squad?search=${encodeURIComponent(playerName)}&league=${encodeURIComponent(league)}`);
+    const d = await r.json();
+    return d.teams || [];
+  }catch(e){ return []; }
+}
+
+// Equipos conocidos por liga para sugerir sin llamada
+function getLeagueTeams(league){
+  const teams = {
+    GB: ['Arsenal','Chelsea','Liverpool','Manchester City','Manchester United','Tottenham','Newcastle','West Ham','Aston Villa','Brighton','Fulham','Brentford','Crystal Palace','Everton','Nottingham Forest','Bournemouth','Wolves','Leicester','Ipswich','Southampton'],
+    ES: ['Real Madrid','Barcelona','Atletico Madrid','Sevilla','Valencia','Villarreal','Real Betis','Athletic Club','Real Sociedad','Girona','Osasuna','Getafe','Mallorca','Las Palmas','Rayo Vallecano','Celta Vigo','Espanyol','Alaves','Leganes','Valladolid'],
+    AR: ['Boca Juniors','River Plate','Racing Club','Independiente','San Lorenzo','Huracán','Vélez','Estudiantes','Talleres','Belgrano','Lanús','Banfield','Defensa y Justicia','Tigre','Rosario Central','Newell\'s','Godoy Cruz','Platense','Sarmiento','Barracas Central'],
+    IT: ['Juventus','Inter Milan','AC Milan','Napoli','Roma','Lazio','Fiorentina','Atalanta','Torino','Bologna','Genoa','Udinese','Sassuolo','Empoli','Lecce','Monza','Frosinone','Verona','Cagliari','Salernitana'],
+    DE: ['Bayern Munich','Borussia Dortmund','Bayer Leverkusen','RB Leipzig','Eintracht Frankfurt','Wolfsburg','Freiburg','Hoffenheim','Mainz','Augsburg','Bochum','Werder Bremen','Union Berlin','Köln','Stuttgart','Gladbach'],
+    FR: ['Paris Saint-Germain','Marseille','Lyon','Monaco','Lille','Rennes','Nice','Lens','Strasbourg','Nantes','Toulouse','Reims','Montpellier','Lorient','Brest','Le Havre'],
+    BR: ['Flamengo','Palmeiras','Corinthians','Santos','São Paulo','Atletico Mineiro','Internacional','Grêmio','Fluminense','Vasco','Botafogo','Cruzeiro','Bahia','Fortaleza'],
+    MX: ['América','Chivas','Cruz Azul','Pumas','Tigres','Monterrey','Atlas','Toluca','León','Pachuca','Santos Laguna','Tijuana','Necaxa','Puebla','Querétaro','Mazatlán'],
+    UY: ['Peñarol','Nacional','Defensor Sporting','Danubio','Rentistas','River Plate UY','Wanderers','Plaza Colonia'],
+    CL: ['Colo-Colo','Universidad de Chile','Universidad Católica','Palestino','Huachipato','Audax Italiano','La Serena','Everton CL'],
+    CO: ['Millonarios','Atletico Nacional','América de Cali','Junior','Deportes Tolima','Santa Fe','Once Caldas','Deportivo Cali'],
+    US: ['LA Galaxy','LAFC','Inter Miami','New York City','Atlanta United','Seattle Sounders','Portland Timbers','New England Revolution'],
+  };
+  return teams[league] || [];
+}
 
 async function fetchSquad(team, league){
   const key = `${team}-${league}`;
@@ -686,9 +714,13 @@ async function showNormalization(){
       ? `<div class="meta-team-label">Equipo${teamConfidence==='low'?` <span style="color:#b85000">· estimado del logo</span>`:''}</div>
          <div class="meta-team-val">${esc(p.team)}</div>`
       : `<div class="meta-team-label">Equipo <span style="color:#c00020">· no detectado</span></div>
-         <input class="team-edit" id="teaminp-${p.id}" placeholder="ej: River Plate"
+         <input class="team-edit" id="teaminp-${p.id}" placeholder="ej: Liverpool"
            oninput="onTeamEdit(${p.id},this)">
-         <div class="team-edit-hint">Ingresá el equipo para ver sugerencias</div>`;
+         <div class="norm-team-chips" id="tchips-${p.id}">${
+           getLeagueTeams(S.league).slice(0,6).map(t=>
+             `<span class="norm-team-chip" onclick="selectTeam(${p.id},'${esc(t)}')">${esc(t)}</span>`
+           ).join('')
+         }</div>`;
 
     const chipsHtml = suggestions.length
       ? `<div class="norm-suggestions" id="nsug-${p.id}">${suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${p.id},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')}</div>`
@@ -717,26 +749,45 @@ async function showNormalization(){
   status('REVISÁ LOS NOMBRES');
 }
 
+async function selectTeam(pid, teamName){
+  const p = S.players.find(x=>x.id===pid);
+  if(p) p.team = teamName;
+  const inp = document.getElementById(`teaminp-${pid}`);
+  if(inp){ inp.value = teamName; inp.className = 'team-edit filled'; }
+  const tchips = document.getElementById(`tchips-${pid}`);
+  if(tchips) tchips.style.display='none';
+  const row = document.getElementById(`nrow-${pid}`);
+  if(row){ row.classList.remove('no-team-row'); row.classList.add('needs-review'); }
+  // Buscar plantel y mostrar sugerencias de nombre
+  const squad = await fetchSquad(teamName, S.league);
+  const nameInput = document.getElementById(`ninput-${pid}`);
+  const suggestions = squad.length && nameInput ? matchSuggestions(squad, nameInput.value) : [];
+  const chipsEl = document.getElementById(`nsug-${pid}`);
+  if(chipsEl && suggestions.length){
+    chipsEl.innerHTML = suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('');
+  }
+}
+
 async function onTeamEdit(pid, input){
   const val = input.value.trim();
-  const chipsEl = document.getElementById(`nsug-${pid}`);
-  if(val.length < 3){ if(chipsEl) chipsEl.innerHTML=''; return; }
-  // Actualizar el team del player
+  const tchips = document.getElementById(`tchips-${pid}`);
+  // Filtrar chips de equipos según lo que se escribe
+  if(tchips){
+    const filtered = getLeagueTeams(S.league).filter(t=>t.toLowerCase().includes(val.toLowerCase())).slice(0,6);
+    tchips.style.display = filtered.length ? 'flex' : 'none';
+    tchips.innerHTML = filtered.map(t=>`<span class="norm-team-chip" onclick="selectTeam(${pid},'${esc(t)}')">${esc(t)}</span>`).join('');
+  }
+  if(val.length < 3) return;
   const p = S.players.find(x=>x.id===pid);
   if(p) p.team = val;
-  input.className = val.length > 2 ? 'team-edit filled' : 'team-edit';
-  // Buscar plantel
+  input.className = 'team-edit filled';
   const squad = await fetchSquad(val, S.league);
   const nameInput = document.getElementById(`ninput-${pid}`);
   const suggestions = squad.length && nameInput ? matchSuggestions(squad, nameInput.value) : [];
-  if(chipsEl){
-    chipsEl.innerHTML = suggestions.length
-      ? suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('')
-      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
+  const chipsEl = document.getElementById(`nsug-${pid}`);
+  if(chipsEl && suggestions.length){
+    chipsEl.innerHTML = suggestions.map(s=>`<span class="norm-sug-item" onclick="applySuggestion(${pid},'${esc(s.name)}')">${esc(s.name)}</span>`).join('');
   }
-  // Actualizar estado de la fila
-  const row = document.getElementById(`nrow-${pid}`);
-  if(row && val.length > 2){ row.classList.remove('no-team-row'); row.classList.add('needs-review'); }
 }
 
 function applySuggestion(pid, name){
@@ -769,17 +820,17 @@ function confirmNormalization(){
 
 function loadDemo(){
   S.players=[
-    {id:1,name:'Vinicius Jr.',team:'Real Madrid',position:'DEL',price:'62M',points:'128'},
-    {id:2,name:'Pedri',team:'Barcelona',position:'MED',price:'44M',points:'102'},
-    {id:3,name:'Ter Stegen',team:'Barcelona',position:'POR',price:'19M',points:'88'},
-    {id:4,name:'Bellingham',team:'Real Madrid',position:'MED',price:'56M',points:'118'},
-    {id:5,name:'Lamine Yamal',team:'Barcelona',position:'DEL',price:'52M',points:'114'},
-    {id:6,name:'Militão',team:'Real Madrid',position:'DEF',price:'27M',points:'78'},
-    {id:7,name:'Cancelo',team:'Barcelona',position:'DEF',price:'22M',points:'82'},
-    {id:8,name:'Mbappé',team:'Real Madrid',position:'DEL',price:'70M',points:'135'},
+    {id:1,name:'Caoimhin Kelleher',team:'Liverpool',position:'POR',price:'£2.4M',points:'138',nameComplete:true,teamConfidence:'high'},
+    {id:2,name:'Timber',team:'Arsenal',position:'DEF',price:'£5.8M',points:'144',nameComplete:false,teamConfidence:'high'},
+    {id:3,name:'Martinez A',team:'Racing Club',position:'MED',price:'£1.7M',points:'116',nameComplete:false,teamConfidence:'high'},
+    {id:4,name:'Moreno A',team:'River Plate',position:'MED',price:'£1.2M',points:'98',nameComplete:false,teamConfidence:'low'},
+    {id:5,name:'Di Cé...',team:null,position:'DEF',price:'£2.1M',points:'88',nameComplete:false,teamConfidence:'none'},
+    {id:6,name:'Lautaro Martínez',team:'Inter Milan',position:'DEL',price:'£12M',points:'158',nameComplete:true,teamConfidence:'high'},
+    {id:7,name:'Vinicius Jr.',team:'Real Madrid',position:'DEL',price:'£14M',points:'142',nameComplete:true,teamConfidence:'high'},
+    {id:8,name:'Saliba',team:'Arsenal',position:'DEF',price:'£6.5M',points:'118',nameComplete:false,teamConfidence:'high'},
   ];
   S.playerNews={};
-  afterLoad();
+  showNormalization();
 }
 
 function afterLoad(){ renderSidebar(); showGrid(); toast('Equipo cargado — precargando noticias…','ok'); prefetchAll(); }
