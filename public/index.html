@@ -811,19 +811,22 @@ async function showNormalization(){
     pendingList.innerHTML = pending.map(p=>{
       const hasTeam = !!p.team;
       const teamConf = p.teamConfidence || (hasTeam?'high':'none');
-      const teamFieldHtml = hasTeam
-        ? `<div class="norm-field">
-             <label>Equipo${teamConf==='low'?' · <span style="color:#b85000">estimado</span>':''}</label>
-             <input class="norm-field input ok" value="${esc(p.team)}" id="teaminp-${p.id}" oninput="onTeamEdit(${p.id},this)" style="background:var(--surface2);border:1.5px solid #00b87a;color:var(--text);padding:8px 10px;font-size:12px;border-radius:8px;outline:none;width:100%">
-             <div class="norm-chips" id="tchips-${p.id}">
-               <span class="norm-chip sel" onclick="clearTeam(${p.id})">${esc(p.team)} ✕</span>
-             </div>
-           </div>`
-        : `<div class="norm-field">
-             <label>Equipo <span style="color:#e8333a">· no detectado</span></label>
-             <input id="teaminp-${p.id}" placeholder="ej: Boca Juniors" oninput="onTeamEdit(${p.id},this)" style="background:#fff0f0;border:1.5px solid #e8333a;color:var(--text);padding:8px 10px;font-size:12px;border-radius:8px;outline:none;width:100%">
-             <div class="norm-chips" id="tchips-${p.id}"></div>
-           </div>`;
+      const teamBorderColor = !hasTeam ? '#e8333a' : teamConf==='low' ? '#f0a500' : '#00b87a';
+      const teamBg = !hasTeam ? '#fff0f0' : 'var(--surface2)';
+      const teamLabel = !hasTeam
+        ? `Equipo <span style="color:#e8333a">· no detectado</span>`
+        : teamConf==='low'
+          ? `Equipo · <span style="color:#b85000">verificar</span>`
+          : `Equipo`;
+      const teamFieldHtml = `<div class="norm-field">
+           <label>${teamLabel}</label>
+           <input id="teaminp-${p.id}" value="${esc(p.team||'')}" placeholder="ej: Aston Villa"
+             oninput="onTeamEdit(${p.id},this)"
+             style="background:${teamBg};border:1.5px solid ${teamBorderColor};color:var(--text);padding:8px 10px;font-size:12px;border-radius:8px;outline:none;width:100%;transition:border-color .2s">
+           <div class="norm-chips" id="tchips-${p.id}">
+             ${hasTeam?`<span class="norm-chip sel" data-pid="${p.id}" data-team="${esc(p.team)}" onclick="selectTeamFromChip(this)">${esc(p.team)} ✓</span>`:''}
+           </div>
+         </div>`;
 
       return`<div class="norm-pcard" id="nrow-${p.id}" data-teamok="${hasTeam?'1':'0'}" data-nameok="0">
         <div class="norm-pcard-top">
@@ -897,42 +900,34 @@ async function showNormalization(){
 async function selectTeam(pid, teamName){
   const p = S.players.find(x=>x.id===pid);
   if(p) p.team = teamName;
-
-  // Reemplazar input con chip verde
-  const teamWrap = document.getElementById(`nrow-${pid}`)?.querySelector('.norm-team-wrap');
-  if(teamWrap){
-    teamWrap.innerHTML = `<div class="meta-team-label">Equipo</div>
-      <div class="norm-team-chips" id="tchips-${pid}">
-        <span class="norm-team-chip selected" onclick="clearTeam(${pid})">${esc(teamName)} ✕</span>
-      </div>`;
-  }
-
-  // Quitar rojo, poner naranja si el nombre está incompleto
+  // Update input
+  const inp = document.getElementById(`teaminp-${pid}`);
+  if(inp){ inp.value=teamName; inp.style.borderColor='#00b87a'; inp.style.background='var(--surface2)'; }
+  // Update chip
+  const tchips = document.getElementById(`tchips-${pid}`);
+  if(tchips) tchips.innerHTML=`<span class="norm-chip sel" data-pid="${pid}" data-team="${esc(teamName)}" onclick="selectTeamFromChip(this)">${esc(teamName)} ✓</span>`;
   const row = document.getElementById(`nrow-${pid}`);
-  if(row){
-    row.classList.remove('no-team-row');
-    row.dataset.teamok = '1';
-    const nameOk = row.dataset.nameok === '1';
-    if(!nameOk) row.classList.add('needs-review');
-  }
-
+  if(row) row.dataset.teamok='1';
   updateNormStatus(pid);
-
-  // Buscar plantel y mostrar chips de jugador
+  // Buscar plantel
   const nameInput = document.getElementById(`ninput-${pid}`);
   const rawName = nameInput ? nameInput.value.trim() : '';
   const sug = document.getElementById(`nsug-${pid}`);
-  if(sug) sug.innerHTML = `<span style="font-size:10px;color:var(--muted)">Buscando en el plantel...</span>`;
-
+  if(sug) sug.innerHTML=`<span style="font-size:10px;color:var(--muted)">Buscando plantel...</span>`;
   const squad = await fetchSquad(teamName, S.league);
-  squadCache[`${teamName}-${S.league}`] = squad;
-
+  squadCache[`${teamName}-${S.league}`]=squad;
   if(sug){
     const suggestions = squad.length ? matchSuggestions(squad, rawName) : [];
     sug.innerHTML = suggestions.length
-      ? suggestions.map(s=>`<span class="norm-sug-item" data-pid="${pid}" data-name="${esc(s.name)}" onclick="applySuggestionFromChip(this)">${esc(s.name)}</span>`).join('')
-      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo y presioná ↵</span>`;
+      ? suggestions.map(s=>`<span class="norm-chip" data-pid="${pid}" data-name="${esc(s.name)}" onclick="applySuggestionFromChip(this)">${esc(s.name)}</span>`).join('')
+      : `<span style="font-size:10px;color:var(--muted)">Sin sugerencias — escribí el nombre completo</span>`;
   }
+}
+
+function selectTeamFromChip(el){
+  const pid=parseInt(el.dataset.pid);
+  const team=el.dataset.team;
+  selectTeam(pid, team);
 }
 
 function applySuggestionFromChip(el){
@@ -1022,23 +1017,24 @@ function confirmNormalization(){
 
 async function onTeamEdit(pid, input){
   const val = input.value.trim();
+  // Update border color
+  input.style.borderColor = val.length > 1 ? '#f0a500' : '#e8333a';
+  input.style.background = val.length > 0 ? 'var(--surface2)' : '#fff0f0';
+
   const tchips = document.getElementById(`tchips-${pid}`);
-  if(val.length < 2){
-    if(tchips) tchips.innerHTML='';
-    return;
-  }
-  const filtered = getLeagueTeams(S.league).filter(t=>t.toLowerCase().includes(val.toLowerCase())).slice(0,5);
+  if(val.length < 2){ if(tchips) tchips.innerHTML=''; return; }
+
+  // Mostrar chips filtrados de la liga
+  const filtered = getLeagueTeams(S.league).filter(t=>
+    t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+     .includes(val.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''))
+  ).slice(0,5);
+
   if(tchips){
     tchips.innerHTML = filtered.map(t=>
-      `<span class="norm-team-chip" data-pid="${pid}" data-team="${esc(t)}" onclick="selectTeamFromChip(this)">${esc(t)}</span>`
+      `<span class="norm-chip" data-pid="${pid}" data-team="${esc(t)}" onclick="selectTeamFromChip(this)">${esc(t)}</span>`
     ).join('');
   }
-}
-
-function selectTeamFromChip(el){
-  const pid = parseInt(el.dataset.pid);
-  const team = el.dataset.team;
-  selectTeam(pid, team);
 }
 
 function onNormInput(pid, input){
