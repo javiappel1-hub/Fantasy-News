@@ -783,12 +783,12 @@ async function showNormalization(){
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};
   const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
 
-  // Separar en pendientes y listos
-  const pending = sorted.filter(p=>!isNameComplete(p.name) || !p.team);
-  const ready   = sorted.filter(p=> isNameComplete(p.name) && p.team);
+  // Todos van a revisión — nadie se aprueba automáticamente
+  const pending = sorted;
+  const ready   = [];
 
   const total = sorted.length;
-  let doneCount = ready.length;
+  let doneCount = 0;
 
   function updateProgress(){
     const pct = Math.round(doneCount/total*100);
@@ -833,7 +833,7 @@ async function showNormalization(){
            </div>
          </div>`;
 
-      return`<div class="norm-pcard" id="nrow-${p.id}" data-teamok="${hasTeam?'1':'0'}" data-nameok="0">
+      return`<div class="norm-pcard" id="nrow-${p.id}" data-teamok="0" data-nameok="0">
         <div class="norm-pcard-top">
           <div class="norm-pos ${posCss[p.position]||'pos-DEL'}">${esc(p.position)}</div>
           <div class="norm-pcard-info">
@@ -852,6 +852,9 @@ async function showNormalization(){
               ${hasTeam?`<span style="font-size:10px;color:var(--muted)">Cargando...</span>`:''}
             </div>
           </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px">
+          <button onclick="confirmCard(${p.id})" style="background:var(--accent);color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Confirmar ✓</button>
         </div>
       </div>`;
     }).join('');
@@ -935,6 +938,33 @@ function selectTeamFromChip(el){
   selectTeam(pid, team);
 }
 
+function confirmCard(pid){
+  const row = document.getElementById(`nrow-${pid}`);
+  const nameInput = document.getElementById(`ninput-${pid}`);
+  const teamInput = document.getElementById(`teaminp-${pid}`);
+  const name = nameInput ? nameInput.value.trim() : '';
+  const team = teamInput ? teamInput.value.trim() : '';
+
+  if(!isNameComplete(name)){
+    toast('⚠️ Completá el nombre completo del jugador','err');
+    if(nameInput) nameInput.focus();
+    return;
+  }
+  if(!team){
+    toast('⚠️ Indicá el equipo del jugador','err');
+    if(teamInput) teamInput.focus();
+    return;
+  }
+
+  // Actualizar player
+  const p = S.players.find(x=>x.id===pid);
+  if(p){ p.name = name; p.team = team; }
+
+  // Marcar como confirmado
+  if(row){ row.dataset.teamok='1'; row.dataset.nameok='1'; }
+  updateNormStatus(pid);
+}
+
 function applySuggestionFromChip(el){
   const pid = parseInt(el.dataset.pid);
   const name = el.dataset.name;
@@ -984,27 +1014,14 @@ function updateNormStatus(pid){
 }
 
 function confirmNormalization(){
-  // Auto-aprobar jugadores con nombre completo (equipo opcional)
-  S.players.forEach(p=>{
-    const row = document.getElementById(`nrow-${p.id}`);
-    if(!row) return;
-    const input = document.getElementById(`ninput-${p.id}`);
-    const currentName = input ? input.value.trim() : p.name;
-    if(isNameComplete(currentName)){
-      row.dataset.nameok = '1';
-      row.dataset.teamok = '1'; // equipo opcional si nombre completo
-    }
-  });
-
-  // Verificar que todos estén completos
+  // Verificar que todos estén confirmados explícitamente
   const incomplete = S.players.filter(p=>{
     const row = document.getElementById(`nrow-${p.id}`);
     return row && (row.dataset.teamok!=='1' || row.dataset.nameok!=='1');
   });
 
   if(incomplete.length){
-    toast(`⚠️ Completá equipo y nombre de los ${incomplete.length} jugadores marcados`,'err');
-    // Hacer scroll al primero incompleto
+    toast(`⚠️ Confirmá equipo y nombre de los ${incomplete.length} jugadores restantes`,'err');
     const firstRow = document.getElementById(`nrow-${incomplete[0].id}`);
     if(firstRow) firstRow.scrollIntoView({behavior:'smooth', block:'center'});
     return;
