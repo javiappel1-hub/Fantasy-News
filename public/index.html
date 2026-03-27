@@ -736,7 +736,7 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
 
   if(!chipsEl || !card || card.dataset.confirmed==='1') return;
 
-  const queries=buildPlayerQueries(searchName);
+  const queries = buildPlayerQueries(searchName, searchTeam);
 
   if(!queries.length){
     if(sub) sub.textContent='escribí al menos 2 letras para buscar';
