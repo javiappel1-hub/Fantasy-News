@@ -647,6 +647,7 @@ function buildPlayerQueries(name='', team=''){
   const tokens = norm.split(' ').filter(Boolean);
 
   const teamNorm = normalizeText(team || '');
+  const teamTokens = teamNorm.split(' ').filter(Boolean);
 
   const queries = [];
   const push = q=>{
@@ -654,39 +655,50 @@ function buildPlayerQueries(name='', team=''){
     if(v && !queries.includes(v)) queries.push(v);
   };
 
-  // base
+  // base nombre
   push(raw);
   push(norm);
 
-  // combinaciones nombre
-  if(tokens.length>=2){
+  // nombre completo y variantes
+  if(tokens.length >= 2){
     push(tokens.join(' '));
     push(tokens.slice(0,2).join(' '));
-    push(tokens[tokens.length-2] + ' ' + tokens[tokens.length-1]);
+    push(tokens.slice(-2).join(' '));
   }
 
-  if(tokens.length>=1){
+  if(tokens.length >= 1){
     push(tokens[0]);
     push(tokens[tokens.length-1]);
   }
 
-  // 🔥 combinar con equipo
-  if(teamNorm && tokens.length){
-    push(tokens.join(' ') + ' ' + teamNorm);
-    push(teamNorm + ' ' + tokens.join(' '));
-
-    if(tokens.length>=2){
-      push(tokens[0] + ' ' + teamNorm);
-      push(tokens[tokens.length-1] + ' ' + teamNorm);
-    }
-  }
-
-  // 🔥 buscar solo por equipo
+  // meter el equipo fuerte en la query
   if(teamNorm){
+    push(`${norm} ${teamNorm}`);
+    push(`${teamNorm} ${norm}`);
+
+    if(tokens.length >= 2){
+      push(`${tokens[0]} ${tokens[1]} ${teamNorm}`);
+      push(`${tokens[tokens.length-2]} ${tokens[tokens.length-1]} ${teamNorm}`);
+    }
+
+    if(tokens.length >= 1){
+      push(`${tokens[0]} ${teamNorm}`);
+      push(`${tokens[tokens.length-1]} ${teamNorm}`);
+    }
+
+    // si el club tiene varias palabras, también probar versiones parciales
+    if(teamTokens.length >= 2){
+      push(`${norm} ${teamTokens[0]}`);
+      push(`${norm} ${teamTokens[teamTokens.length-1]}`);
+      push(`${tokens[0] || ''} ${teamTokens[0]}`.trim());
+      push(`${tokens[tokens.length-1] || ''} ${teamTokens[0]}`.trim());
+    }
+
+    // fallback por equipo solo
     push(teamNorm);
   }
 
-  return queries.filter(q=>q.length>=2).slice(0,8);
+  return queries.filter(q=>q.length>=2).slice(0,12);
 }
 
 function scoreCandidate(pl,searchName,searchTeam){
