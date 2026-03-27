@@ -701,38 +701,59 @@ function buildPlayerQueries(name='', team=''){
   return queries.filter(q=>q.length>=2).slice(0,12);
 }
 
-function scoreCandidate(pl,searchName,searchTeam){
-  const playerName=normalizeText(pl.strPlayer||'');
-  const playerTeam=normalizeText(pl.strTeam||'');
-  const qName=normalizeText(searchName||'');
-  const qTeam=normalizeText(searchTeam||'');
+function scoreCandidate(pl, searchName, searchTeam){
+  const playerName = normalizeText(pl.strPlayer || '');
+  const playerTeam = normalizeText(pl.strTeam || '');
 
-  let score=0;
+  const qName = normalizeText(searchName || '');
+  const qTeam = normalizeText(searchTeam || '');
+
+  let score = 0;
 
   if(qName){
-    if(playerName===qName) score+=120;
-    if(playerName.startsWith(qName)) score+=60;
-    if(playerName.includes(qName)) score+=45;
+    if(playerName === qName) score += 240;
+    if(playerName.startsWith(qName)) score += 100;
+    if(playerName.includes(qName)) score += 65;
 
-    const qTokens=qName.split(' ').filter(Boolean);
-    for(const t of qTokens){
-      if(t.length>=2 && playerName.includes(t)) score+=12;
+    const nameTokens = qName.split(' ').filter(Boolean);
+    const matchedName = nameTokens.filter(t => t.length >= 2 && playerName.includes(t)).length;
+
+    score += matchedName * 24;
+
+    if(nameTokens.length >= 2 && matchedName === nameTokens.length){
+      score += 90;
+    }
+
+    if(nameTokens.length >= 2){
+      const reversed = [...nameTokens].reverse().join(' ');
+      if(playerName === reversed) score += 120;
+      else if(playerName.includes(reversed)) score += 45;
     }
   }
 
   if(qTeam){
-    if(playerTeam===qTeam) score+=80;
-    else if(playerTeam.includes(qTeam) || qTeam.includes(playerTeam)) score+=35;
+    if(playerTeam === qTeam) score += 220;
+    else if(playerTeam.startsWith(qTeam)) score += 130;
+    else if(playerTeam.includes(qTeam) || qTeam.includes(playerTeam)) score += 90;
 
-    const qTeamTokens=qTeam.split(' ').filter(Boolean);
-    for(const t of qTeamTokens){
-      if(t.length>=2 && playerTeam.includes(t)) score+=10;
+    const teamTokens = qTeam.split(' ').filter(Boolean);
+    const matchedTeam = teamTokens.filter(t => t.length >= 2 && playerTeam.includes(t)).length;
+
+    score += matchedTeam * 28;
+
+    if(teamTokens.length >= 1 && matchedTeam === teamTokens.length){
+      score += 70;
+    }
+
+    // bonus fuerte si coincide nombre y club
+    if(qName && (playerName.includes(qName) || playerName === qName) && matchedTeam > 0){
+      score += 80;
     }
   }
 
-  if(pl.strThumb) score+=5;
-  if(pl.strStatus==='Active') score+=5;
-  if(pl.strSport==='Soccer') score+=5;
+  if(pl.strThumb) score += 6;
+  if(pl.strStatus === 'Active') score += 8;
+  if(pl.strSport === 'Soccer') score += 8;
 
   return score;
 }
@@ -748,7 +769,7 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
 
   if(!chipsEl || !card || card.dataset.confirmed==='1') return;
 
-  const queries = buildPlayerQueries(searchName, searchTeam);
+  const queries=buildPlayerQueries(searchName, searchTeam);
 
   if(!queries.length){
     if(sub) sub.textContent='escribí al menos 2 letras para buscar';
@@ -759,22 +780,61 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
   try{
     let all=[];
 
-    for(const q of queries){
-      const r=await fetch(`/api/player?q=${encodeURIComponent(q)}`);
-      const d=await r.json();
+    async function runQueries(queryList){
+      for(const q of queryList){
+        const r=await fetch(`/api/player?q=${encodeURIComponent(q)}`);
+        const d=await r.json();
 
-      if(_normSearchSeq[pid]!==seq) return;
+        if(_normSearchSeq[pid]!==seq) return false;
 
-      const batch=(d.player||[]).filter(x=>
-        x.strSport==='Soccer' &&
-        x.strStatus==='Active' &&
-        x.strTeam &&
-        !x.strTeam.startsWith('_')
-      );
+        const batch=(d.player||[]).filter(x=>
+          x.strSport==='Soccer' &&
+          x.strStatus==='Active' &&
+          x.strTeam &&
+          !x.strTeam.startsWith('_')
+        );
 
-      all.push(...batch);
+        all.push(...batch);
 
-      if(all.length>=12) break;
+        if(all.length>=24) break;
+      }
+      return true;
+    }
+
+    // búsqueda principal
+    const ok = await runQueries(queries);
+    if(!ok) return;
+
+    // fallback automático si vino poco o nada
+    if(all.length < 3){
+      const normName = normalizeText(searchName || '');
+      const normTeam = normalizeText(searchTeam || '');
+
+      const nameTokens = normName.split(' ').filter(Boolean);
+      const fallbackQueries = [];
+
+      const pushFallback = q => {
+        const v = (q || '').trim();
+        if(v && !fallbackQueries.includes(v) && !queries.includes(v)) fallbackQueries.push(v);
+      };
+
+      if(nameTokens.length >= 2){
+        pushFallback(`${nameTokens[nameTokens.length-1]} ${normTeam}`.trim());
+        pushFallback(`${nameTokens[0]} ${normTeam}`.trim());
+        pushFallback(nameTokens[nameTokens.length-1]);
+        pushFallback(nameTokens[0]);
+        pushFallback(nameTokens.slice(-2).join(' '));
+      } else if(nameTokens.length === 1){
+        pushFallback(`${nameTokens[0]} ${normTeam}`.trim());
+        pushFallback(nameTokens[0]);
+      }
+
+      if(normTeam){
+        pushFallback(normTeam);
+      }
+
+      const ok2 = await runQueries(fallbackQueries);
+      if(!ok2) return;
     }
 
     if(_normSearchSeq[pid]!==seq) return;
@@ -805,9 +865,14 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
       return;
     }
 
-    if(allowAutoConfirm && results.length===1 && results[0].strThumb){
+    if(
+      allowAutoConfirm &&
+      results.length >= 1 &&
+      results[0]._score >= 260 &&
+      (!results[1] || results[0]._score - results[1]._score >= 80)
+    ){
       chipsEl.innerHTML='';
-      confirmCard(pid,results[0].strPlayer,results[0].strTeam,results[0].strThumb);
+      confirmCard(pid,results[0].strPlayer,results[0].strTeam,results[0].strThumb||'');
       return;
     }
 
@@ -831,7 +896,7 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
     }
   }
 }
-
+  
 function pickPlayer(el){
   const pid=parseInt(el.dataset.pid);
   const name=el.dataset.name;
