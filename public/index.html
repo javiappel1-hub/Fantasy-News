@@ -502,8 +502,11 @@ function loadDemo(){
 }
 
 // ── NORMALIZATION ─────────────────────────────────────────────────────────────
+// ── NORMALIZATION ─────────────────────────────────────────────────────────────
 let _normDone=0;
 let _normTotal=0;
+const _normSearchTimers={};
+const _normSearchSeq={};
 
 async function showNormalization(){
   document.getElementById('welcomeScr').style.display='none';
@@ -514,11 +517,15 @@ async function showNormalization(){
   _normDone=0;
   _normTotal=S.players.length;
   updateNormProgress();
+
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};
   const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
   document.getElementById('normCards').innerHTML=sorted.map(p=>renderNormCard(p)).join('');
-  // Resolver jugadores en background via TheSportsDB
-  sorted.forEach(p=>resolvePlayer(p));
+
+  sorted.forEach(p=>{
+    bindNormInputs(p.id);
+    resolvePlayer(p);
+  });
 }
 
 function renderNormCard(p){
@@ -538,12 +545,28 @@ function renderNormCard(p){
         <span style="font-size:11px;color:var(--muted)">Buscando...</span>
       </div>
       <div class="norm-manual">
-        <label>O escribí el nombre y equipo manualmente</label>
+        <label>Escribí el nombre correcto y te mostramos opciones</label>
         <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input class="norm-manual input" id="nname-${p.id}" placeholder="Nombre completo" value="${esc(p.name)}" style="flex:1;font-size:12px;padding:7px 10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text);outline:none">
+          <input
+            class="norm-manual input"
+            id="nname-${p.id}"
+            placeholder="Nombre completo"
+            value="${esc(p.name)}"
+            autocomplete="off"
+            spellcheck="false"
+            style="flex:1;font-size:12px;padding:7px 10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text);outline:none"
+          >
         </div>
         <div class="norm-manual-row">
-          <input class="norm-manual input" id="nteam-${p.id}" placeholder="Equipo" value="${esc(p.team||'')}" style="flex:1;font-size:12px;padding:7px 10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text);outline:none">
+          <input
+            class="norm-manual input"
+            id="nteam-${p.id}"
+            placeholder="Equipo"
+            value="${esc(p.team||'')}"
+            autocomplete="off"
+            spellcheck="false"
+            style="flex:1;font-size:12px;padding:7px 10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text);outline:none"
+          >
           <button class="norm-manual-btn" onclick="confirmManual(${p.id})">Confirmar</button>
         </div>
       </div>
@@ -551,34 +574,229 @@ function renderNormCard(p){
   </div>`;
 }
 
+function bindNormInputs(pid){
+  const nameInput=document.getElementById(`nname-${pid}`);
+  const teamInput=document.getElementById(`nteam-${pid}`);
+  if(!nameInput)return;
+
+  if(nameInput.dataset.bound==='1')return;
+  nameInput.dataset.bound='1';
+
+  nameInput.addEventListener('input',()=>{
+    scheduleLivePlayerSearch(pid);
+  });
+
+  if(teamInput){
+    teamInput.addEventListener('input',()=>{
+      scheduleLivePlayerSearch(pid);
+    });
+  }
+}
+
+function scheduleLivePlayerSearch(pid){
+  clearTimeout(_normSearchTimers[pid]);
+
+  const name=(document.getElementById(`nname-${pid}`)?.value||'').trim();
+  const team=(document.getElementById(`nteam-${pid}`)?.value||'').trim();
+
+  const chipsEl=document.getElementById(`nchips-${pid}`);
+  const sub=document.getElementById(`nsub-${pid}`);
+
+  if(name.length<2){
+    if(sub) sub.textContent='escribí al menos 2 letras para buscar';
+    if(chipsEl) chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Escribí al menos 2 letras</span>`;
+    return;
+  }
+
+  if(chipsEl){
+    chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Buscando...</span>`;
+  }
+  if(sub){
+    sub.textContent='buscando coincidencias...';
+  }
+
+  _normSearchTimers[pid]=setTimeout(()=>{
+    searchAndRenderCandidates(pid,name,team,{allowAutoConfirm:false});
+  },300);
+}
+
 async function resolvePlayer(p){
-  const lastName=p.name.trim().split(/\s+/)[0];
+  await searchAndRenderCandidates(
+    p.id,
+    (p.name||'').trim(),
+    (p.team||'').trim(),
+    {allowAutoConfirm:true}
+  );
+}
+
+function normalizeText(s=''){
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function buildPlayerQueries(name=''){
+  const raw=name.trim();
+  if(!raw) return [];
+
+  const norm=normalizeText(raw);
+  const tokens=norm.split(' ').filter(Boolean);
+
+  const queries=[];
+  const push=q=>{
+    const v=(q||'').trim();
+    if(v && !queries.includes(v)) queries.push(v);
+  };
+
+  push(raw);
+  push(norm);
+
+  if(tokens.length>=2){
+    push(tokens.join(' '));
+    push(tokens.slice(0,2).join(' '));
+    push(tokens[tokens.length-2] + ' ' + tokens[tokens.length-1]);
+  }
+
+  if(tokens.length>=1){
+    push(tokens[0]);
+    push(tokens[tokens.length-1]);
+  }
+
+  return queries.filter(q=>q.length>=2).slice(0,5);
+}
+
+function scoreCandidate(pl,searchName,searchTeam){
+  const playerName=normalizeText(pl.strPlayer||'');
+  const playerTeam=normalizeText(pl.strTeam||'');
+  const qName=normalizeText(searchName||'');
+  const qTeam=normalizeText(searchTeam||'');
+
+  let score=0;
+
+  if(qName){
+    if(playerName===qName) score+=120;
+    if(playerName.startsWith(qName)) score+=60;
+    if(playerName.includes(qName)) score+=45;
+
+    const qTokens=qName.split(' ').filter(Boolean);
+    for(const t of qTokens){
+      if(t.length>=2 && playerName.includes(t)) score+=12;
+    }
+  }
+
+  if(qTeam){
+    if(playerTeam===qTeam) score+=80;
+    else if(playerTeam.includes(qTeam) || qTeam.includes(playerTeam)) score+=35;
+
+    const qTeamTokens=qTeam.split(' ').filter(Boolean);
+    for(const t of qTeamTokens){
+      if(t.length>=2 && playerTeam.includes(t)) score+=10;
+    }
+  }
+
+  if(pl.strThumb) score+=5;
+  if(pl.strStatus==='Active') score+=5;
+  if(pl.strSport==='Soccer') score+=5;
+
+  return score;
+}
+
+async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
+  const {allowAutoConfirm=false}=opts;
+  const seq=(_normSearchSeq[pid]||0)+1;
+  _normSearchSeq[pid]=seq;
+
+  const sub=document.getElementById(`nsub-${pid}`);
+  const chipsEl=document.getElementById(`nchips-${pid}`);
+  const card=document.getElementById(`ncard-${pid}`);
+
+  if(!chipsEl || !card || card.dataset.confirmed==='1') return;
+
+  const queries=buildPlayerQueries(searchName);
+
+  if(!queries.length){
+    if(sub) sub.textContent='escribí al menos 2 letras para buscar';
+    chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Escribí al menos 2 letras</span>`;
+    return;
+  }
+
   try{
-    const r=await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(lastName)}`);
-    const d=await r.json();
-    const results=(d.player||[]).filter(x=>x.strSport==='Soccer'&&x.strStatus==='Active'&&x.strTeam&&!x.strTeam.startsWith('_'));
-    const sub=document.getElementById(`nsub-${p.id}`);
-    if(sub) sub.textContent=results.length?`${results.length} resultado${results.length>1?'s':''} encontrado${results.length>1?'s':''}`:'no encontrado — completá manualmente';
-    const chipsEl=document.getElementById(`nchips-${p.id}`);
-    if(!chipsEl)return;
-    if(!results.length){chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Sin resultados — completá manualmente abajo</span>`;return;}
-    // Si hay un solo resultado con foto → auto-confirmar
-    if(results.length===1&&results[0].strThumb){
-      chipsEl.innerHTML='';
-      confirmCard(p.id,results[0].strPlayer,results[0].strTeam,results[0].strThumb);
+    let all=[];
+
+    for(const q of queries){
+      const r=await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(q)}`);
+      const d=await r.json();
+
+      if(_normSearchSeq[pid]!==seq) return;
+
+      const batch=(d.player||[]).filter(x=>
+        x.strSport==='Soccer' &&
+        x.strStatus==='Active' &&
+        x.strTeam &&
+        !x.strTeam.startsWith('_')
+      );
+
+      all.push(...batch);
+
+      if(all.length>=12) break;
+    }
+
+    if(_normSearchSeq[pid]!==seq) return;
+
+    const seen=new Set();
+    const results=all
+      .filter(pl=>{
+        const key=`${pl.idPlayer||''}-${normalizeText(pl.strPlayer||'')}-${normalizeText(pl.strTeam||'')}`;
+        if(seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map(pl=>({
+        ...pl,
+        _score:scoreCandidate(pl,searchName,searchTeam)
+      }))
+      .sort((a,b)=>b._score-a._score)
+      .slice(0,6);
+
+    if(sub){
+      sub.textContent=results.length
+        ? `${results.length} resultado${results.length>1?'s':''} encontrado${results.length>1?'s':''}`
+        : 'no encontrado — completá manualmente';
+    }
+
+    if(!results.length){
+      chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Sin resultados — completá manualmente abajo</span>`;
       return;
     }
-    chipsEl.innerHTML=results.slice(0,4).map(pl=>`
-      <div class="norm-pchip" data-pid="${p.id}" data-name="${esc(pl.strPlayer)}" data-team="${esc(pl.strTeam)}" data-thumb="${esc(pl.strThumb||'')}" onclick="pickPlayer(this)">
-        ${pl.strThumb?`<img class="norm-pchip-thumb" src="${esc(pl.strThumb)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover">`:`<div class="norm-pchip-thumb">${esc(pl.strPlayer.split(' ').map(w=>w[0]).join('').substring(0,2))}</div>`}
+
+    if(allowAutoConfirm && results.length===1 && results[0].strThumb){
+      chipsEl.innerHTML='';
+      confirmCard(pid,results[0].strPlayer,results[0].strTeam,results[0].strThumb);
+      return;
+    }
+
+    chipsEl.innerHTML=results.map(pl=>`
+      <div class="norm-pchip" data-pid="${pid}" data-name="${esc(pl.strPlayer)}" data-team="${esc(pl.strTeam)}" data-thumb="${esc(pl.strThumb||'')}" onclick="pickPlayer(this)">
+        ${pl.strThumb
+          ? `<img class="norm-pchip-thumb" src="${esc(pl.strThumb)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover">`
+          : `<div class="norm-pchip-thumb">${esc((pl.strPlayer||'').split(' ').map(w=>w[0]).join('').substring(0,2))}</div>`
+        }
         <div>
           <div class="norm-pchip-name">${esc(pl.strPlayer)}</div>
           <div class="norm-pchip-team">${esc(pl.strTeam)}</div>
         </div>
-      </div>`).join('');
+      </div>
+    `).join('');
   }catch(e){
-    const chipsEl=document.getElementById(`nchips-${p.id}`);
-    if(chipsEl)chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Error de conexión — completá manualmente</span>`;
+    if(_normSearchSeq[pid]!==seq) return;
+    if(sub) sub.textContent='error de conexión';
+    if(chipsEl){
+      chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Error de conexión — completá manualmente</span>`;
+    }
   }
 }
 
@@ -587,6 +805,12 @@ function pickPlayer(el){
   const name=el.dataset.name;
   const team=el.dataset.team;
   const thumb=el.dataset.thumb;
+
+  const nameInput=document.getElementById(`nname-${pid}`);
+  const teamInput=document.getElementById(`nteam-${pid}`);
+  if(nameInput) nameInput.value=name;
+  if(teamInput) teamInput.value=team;
+
   el.closest('.norm-player-chips').querySelectorAll('.norm-pchip').forEach(c=>c.classList.remove('sel'));
   el.classList.add('sel');
   setTimeout(()=>confirmCard(pid,name,team,thumb),200);
@@ -595,13 +819,18 @@ function pickPlayer(el){
 function confirmCard(pid,name,team,thumb=''){
   const card=document.getElementById(`ncard-${pid}`);
   if(!card||card.dataset.confirmed==='1')return;
+
+  clearTimeout(_normSearchTimers[pid]);
+  _normSearchSeq[pid]=(_normSearchSeq[pid]||0)+1;
+
   card.dataset.confirmed='1';
-  // Update player data
+
   const p=S.players.find(x=>x.id===pid);
   if(p){p.name=name;p.team=team;}
-  // Show confirmed row
+
   const confirmed=document.getElementById(`nconfirmed-${pid}`);
   const edit=document.getElementById(`nedit-${pid}`);
+
   if(confirmed){
     confirmed.style.display='block';
     confirmed.innerHTML=`<div class="norm-confirmed">
@@ -615,6 +844,7 @@ function confirmCard(pid,name,team,thumb=''){
       <button class="norm-btn-edit" onclick="editCard(${pid})">Editar</button>
     </div>`;
   }
+
   if(edit)edit.style.display='none';
   card.classList.add('done');
   _normDone++;
@@ -624,15 +854,19 @@ function confirmCard(pid,name,team,thumb=''){
 function editCard(pid){
   const card=document.getElementById(`ncard-${pid}`);
   if(!card)return;
+
   card.dataset.confirmed='0';
   card.classList.remove('done');
+
   const confirmed=document.getElementById(`nconfirmed-${pid}`);
   const edit=document.getElementById(`nedit-${pid}`);
+
   if(confirmed)confirmed.style.display='none';
   if(edit)edit.style.display='block';
+
   _normDone=Math.max(0,_normDone-1);
   updateNormProgress();
-  // Re-fill manual inputs with current values
+
   const p=S.players.find(x=>x.id===pid);
   if(p){
     const ni=document.getElementById(`nname-${pid}`);
@@ -640,16 +874,28 @@ function editCard(pid){
     if(ni)ni.value=p.name;
     if(ti)ti.value=p.team||'';
   }
+
+  bindNormInputs(pid);
+  scheduleLivePlayerSearch(pid);
 }
 
 function confirmManual(pid){
   const name=document.getElementById(`nname-${pid}`)?.value.trim();
   const team=document.getElementById(`nteam-${pid}`)?.value.trim();
-  if(!name||name.split(' ').length<2){toast('⚠️ Escribí el nombre completo del jugador','err');return;}
-  if(!team){toast('⚠️ Indicá el equipo','err');return;}
+
+  if(!name||name.length<2){
+    toast('⚠️ Escribí al menos 2 letras del nombre','err');
+    return;
+  }
+
+  if(!team){
+    toast('⚠️ Indicá el equipo','err');
+    return;
+  }
+
   confirmCard(pid,name,team,'');
 }
-
+  
 function updateNormProgress(){
   const pct=_normTotal>0?Math.round(_normDone/_normTotal*100):0;
   document.getElementById('normProgFill').style.width=pct+'%';
