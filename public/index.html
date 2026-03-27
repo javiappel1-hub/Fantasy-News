@@ -702,7 +702,12 @@ const SQUAD_MOCK = {
   "newell's old boys":[{name:'Alan Aguerre'},{name:'Gabriel Árias'},{name:'Guillermo Ortiz'},{name:'Ramiro Sordo'},{name:'Gustavo Velázquez'}],
   "newell's":[{name:'Alan Aguerre'},{name:'Gabriel Árias'},{name:'Guillermo Ortiz'},{name:'Ramiro Sordo'}],
   'rosario central':[{name:'Gaspar Servio'},{name:'Marco Ruben'},{name:'Alejo Véliz'},{name:'Jhonatan Canales'}],
-  'liverpool':[{name:'Caoimhin Kelleher'},{name:'Alisson Becker'},{name:'Virgil van Dijk'},{name:'Mohamed Salah'},{name:'Luis Díaz'},{name:'Darwin Núñez'},{name:'Cody Gakpo'},{name:'Trent Alexander-Arnold'},{name:'Ryan Gravenberch'}],
+  'liverpool':[{name:'Caoimhin Kelleher'},{name:'Alisson Becker'},{name:'Virgil van Dijk'},{name:'Mohamed Salah'},{name:'Luis Díaz'},{name:'Darwin Núñez'},{name:'Cody Gakpo'},{name:'Trent Alexander-Arnold'},{name:'Ryan Gravenberch'},{name:'Alexis Mac Allister'},{name:'Ibrahima Konaté'},{name:'Andrew Robertson'},{name:'Diogo Jota'},{name:'Federico Chiesa'}],
+  'fulham':[{name:'André Trindade'},{name:'André'},{name:'Bernd Leno'},{name:'Alex Iwobi'},{name:'Raúl Jiménez'},{name:'Adama Traoré'},{name:'Tom Cairney'},{name:'Antonee Robinson'},{name:'Kenny Tete'},{name:'Calvin Bassey'},{name:'Sander Berge'},{name:'Harry Wilson'},{name:'Rodrigo Muniz'}],
+  'bournemouth':[{name:'Milos Kerkez'},{name:'Neto'},{name:'Antoine Semenyo'},{name:'Justin Kluivert'},{name:'Dango Ouattara'},{name:'Marcos Senesi'},{name:'Chris Mepham'},{name:'Adam Smith'},{name:'Ryan Christie'},{name:'Lewis Cook'},{name:'Philip Billing'},{name:'Emiliano Marcondes'}],
+  'wolves':[{name:'José Sá'},{name:'Rayan Aït-Nouri'},{name:'Hwang Hee-chan'},{name:'Matheus Cunha'},{name:'Pedro Neto'},{name:'Toti Gomes'},{name:'Nelson Semedo'},{name:'Boubacar Traoré'},{name:'João Gomes'},{name:'Pablo Sarabia'},{name:'Gonçalo Guedes'}],
+  'nottingham forest':[{name:'Matz Sels'},{name:'Murillo'},{name:'Nikola Milenković'},{name:'Chris Wood'},{name:'Morgan Gibbs-White'},{name:'Anthony Elanga'},{name:'Callum Hudson-Odoi'},{name:'Nuno Tavares'},{name:'Elliot Anderson'},{name:'Ryan Yates'},{name:'Ibrahim Sangaré'}],
+  'newcastle':[{name:'Nick Pope'},{name:'Alexander Isak'},{name:'Bruno Guimarães'},{name:'Sandro Tonali'},{name:'Harvey Barnes'},{name:'Anthony Gordon'},{name:'Dan Burn'},{name:'Fabian Schär'},{name:'Kieran Trippier'},{name:'Joelinton'},{name:'Jacob Murphy'},{name:'Joe Willock'}],
   'arsenal':[{name:'David Raya'},{name:'Bukayo Saka'},{name:'Martin Ødegaard'},{name:'William Saliba'},{name:'Jurriën Timber'},{name:'Kai Havertz'},{name:'Declan Rice'},{name:'Gabriel Martinelli'},{name:'Leandro Trossard'}],
   'real madrid':[{name:'Thibaut Courtois'},{name:'Vinicius Jr.'},{name:'Kylian Mbappé'},{name:'Jude Bellingham'},{name:'Luka Modrić'},{name:'Federico Valverde'},{name:'Éder Militão'},{name:'Dani Carvajal'},{name:'Rodrygo'}],
   'barcelona':[{name:'Marc-André ter Stegen'},{name:'Robert Lewandowski'},{name:'Pedri'},{name:'Lamine Yamal'},{name:'Raphinha'},{name:'Frenkie de Jong'},{name:'Gavi'},{name:'Jules Koundé'},{name:'Ronald Araújo'}],
@@ -861,14 +866,14 @@ async function showNormalization(){
   if(ready.length){
     okLabel.style.display='block';
     okStrip.innerHTML = `
-      <div class="norm-ok-strip" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='flex'?'none':'flex'">
+      <div class="norm-ok-strip" onclick="document.getElementById('normOkPills').style.display=document.getElementById('normOkPills').style.display==='flex'?'none':'flex'">
         <div class="norm-ok-left">
           <span class="norm-ok-badge">${ready.length} listos</span>
           <span class="norm-ok-text">${ready.slice(0,3).map(p=>p.name).join(', ')}${ready.length>3?'...':''}</span>
         </div>
         <span style="font-size:11px;color:var(--muted)">ver ▾</span>
       </div>
-      <div class="norm-ok-pills" style="display:none">
+      <div class="norm-ok-pills" id="normOkPills" style="display:none">
         ${ready.map(p=>`<span class="norm-ok-pill">${esc(p.name)}</span>`).join('')}
       </div>`;
   } else {
