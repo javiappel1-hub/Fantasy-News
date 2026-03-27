@@ -728,7 +728,7 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
     let all=[];
 
     for(const q of queries){
-      const r=await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(q)}`);
+      const r=await fetch(`/api/player?q=${encodeURIComponent(q)}`);
       const d=await r.json();
 
       if(_normSearchSeq[pid]!==seq) return;
