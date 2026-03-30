@@ -664,7 +664,24 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
     const seen=new Set();
     const results=all.filter(pl=>{const key=`${pl.idPlayer||''}-${normalizeText(pl.strPlayer||'')}-${normalizeText(pl.strTeam||'')}`;if(seen.has(key))return false;seen.add(key);return true;}).map(pl=>({...pl,_score:scoreCandidate(pl,searchName,searchTeam)})).sort((a,b)=>b._score-a._score).slice(0,6);
     if(sub)sub.textContent=results.length?`${results.length} resultado${results.length>1?'s':''} encontrado${results.length>1?'s':''}`:'no encontrado — completá manualmente';
-    if(!results.length){chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Sin resultados — completá manualmente abajo</span>`;return;}
+    if(!results.length){
+      const teamInput = document.getElementById(`nteam-${pid}`)?.value.trim();
+      if(teamInput){
+        if(sub) sub.textContent='buscando plantel del equipo...';
+        const espnPlayers = await fetchSquadFallback(teamInput);
+        if(espnPlayers.length){
+          if(sub) sub.textContent=`${espnPlayers.length} jugadores del plantel de ${teamInput} — elegí el correcto`;
+          chipsEl.innerHTML=espnPlayers.slice(0,30).map(pl=>`
+            <div class="norm-pchip" data-pid="${pid}" data-name="${esc(pl.name)}" data-team="${esc(teamInput)}" data-thumb="" onclick="pickPlayer(this)">
+              <div class="norm-pchip-thumb">${esc((pl.name||'').split(' ').map(w=>w[0]).join('').substring(0,2))}</div>
+              <div><div class="norm-pchip-name">${esc(pl.name)}</div><div class="norm-pchip-team">${esc(teamInput)}</div></div>
+            </div>`).join('');
+          return;
+        }
+      }
+      chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Sin resultados — completá manualmente abajo</span>`;
+      return;
+    }
     if(allowAutoConfirm&&results.length>=1&&results[0]._score>=260&&(!results[1]||results[0]._score-results[1]._score>=80)){
       chipsEl.innerHTML='';confirmCard(pid,results[0].strPlayer,results[0].strTeam,results[0].strThumb||'');return;
     }
@@ -678,6 +695,14 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
     if(sub)sub.textContent='error de conexión';
     if(chipsEl)chipsEl.innerHTML=`<span style="font-size:11px;color:var(--muted)">Error de conexión — completá manualmente</span>`;
   }
+}
+
+async function fetchSquadFallback(team){
+  try{
+    const r=await fetch(`${API_BASE}/api/squad?team=${encodeURIComponent(team)}&league=${encodeURIComponent(S.league||'')}`);
+    const d=await r.json();
+    return d.players||[];
+  }catch(e){return[];}
 }
 
 function pickPlayer(el){
