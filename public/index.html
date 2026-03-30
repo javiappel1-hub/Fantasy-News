@@ -283,7 +283,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="or-sep">o</div>
     <button class="btn-demo" onclick="loadDemo()">⚽ Equipo demo</button>
   </div>
-  <div id="sidebarPlayers"><div class="empty-sidebar">📷 Subí capturas o usá el demo para empezar</div></div>
+  <div id="sidebarPlayers" class="sidebar-players"><div class="empty-sidebar">📷 Subí capturas o usá el demo para empezar</div></div>
 </aside>
 <main>
   <div class="welcome" id="welcomeScr">
@@ -670,8 +670,9 @@ async function searchAndRenderCandidates(pid,searchName,searchTeam='',opts={}){
         if(sub) sub.textContent='buscando plantel del equipo...';
         const espnPlayers = await fetchSquadFallback(teamInput);
         if(espnPlayers.length){
-          if(sub) sub.textContent=`${espnPlayers.length} jugadores del plantel de ${teamInput} — elegí el correcto`;
-          chipsEl.innerHTML=espnPlayers.slice(0,30).map(pl=>`
+          const sorted=espnPlayers.slice(0,30).sort((a,b)=>a.name.localeCompare(b.name));
+          if(sub) sub.textContent=`${sorted.length} jugadores del plantel de ${teamInput} — elegí el correcto`;
+          chipsEl.innerHTML=sorted.map(pl=>`
             <div class="norm-pchip" data-pid="${pid}" data-name="${esc(pl.name)}" data-team="${esc(teamInput)}" data-thumb="" onclick="pickPlayer(this)">
               <div class="norm-pchip-thumb">${esc((pl.name||'').split(' ').map(w=>w[0]).join('').substring(0,2))}</div>
               <div><div class="norm-pchip-name">${esc(pl.name)}</div><div class="norm-pchip-team">${esc(teamInput)}</div></div>
@@ -838,13 +839,12 @@ function renderSidebar(){
   const groups={POR:[],DEF:[],MED:[],DEL:[]};
   sorted.forEach(p=>(groups[p.position]||[]).push(p));
   const labels={POR:'Porteros',DEF:'Defensas',MED:'Centrocampistas',DEL:'Delanteros'};
-  let html='<div class="sidebar-players">';
+  let html='';
   ['POR','DEF','MED','DEL'].forEach(pos=>{
     if(!groups[pos].length)return;
     html+=`<div class="sidebar-group-label">${labels[pos]}</div>`;
     groups[pos].forEach(p=>{html+=`<div class="player-row" id="row-${p.id}" onclick="selectPlayer(${p.id})"><div class="pos-badge pos-${p.position}">${esc(p.position)}</div><div class="row-info"><div class="row-name">${esc(p.name)}</div><div class="row-team">${esc(p.team||'')}</div></div><div class="news-cnt" id="nc-${p.id}">…</div></div>`;});
   });
-  html+='</div>';
   document.getElementById('sidebarPlayers').innerHTML=html;
 }
 
@@ -992,6 +992,19 @@ function init(){
 }
 
 let pressTimer;
+document.getElementById('logoMark').addEventListener('click',()=>{
+  if(S.players.length){
+    document.getElementById('welcomeScr').style.display='none';
+    document.getElementById('gridScr').style.display='none';
+    document.getElementById('normScr').style.display='none';
+    document.getElementById('detailScr').classList.remove('visible');
+    if(S.players.length&&S.playerNews&&Object.keys(S.playerNews).length){
+      showGrid();
+    } else {
+      document.getElementById('welcomeScr').style.display='flex';
+    }
+  }
+});
 document.getElementById('logoMark').addEventListener('mousedown',()=>{
   pressTimer=setTimeout(()=>{
     if(confirm('¿Borrar equipo guardado y empezar de nuevo?')){
