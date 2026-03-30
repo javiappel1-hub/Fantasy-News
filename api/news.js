@@ -61,7 +61,7 @@ async function analyzeAvailability(recentNews, playerName, league) {
   const lang = langMap[league] || 'English';
 
   const headlines = recentNews
-    .filter(n => n.minutesAgo < 10080)
+    .filter(n => n.minutesAgo < 30240) // últimas 3 semanas
     .map(n => `- ${n.title}`)
     .join('\n');
 
@@ -80,20 +80,21 @@ async function analyzeAvailability(recentNews, playerName, league) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 100,
+        max_tokens: 120,
         messages: [{
           role: 'user',
-          content: `Based on these recent news headlines about ${playerName}, is the player available for the next match?
+          content: `Based on these recent news headlines about ${playerName}, determine their availability for the next match.
 
 ${headlines}
 
 Reply ONLY with valid JSON (no markdown):
-{"status":"available"|"doubt"|"out","reason":"one short sentence in ${lang} explaining why, or null if available"}
+{"status":"available"|"doubt"|"out","reason":"one short sentence in ${lang} or null"}
 
-Rules:
-- "out" = confirmed injury, suspension or definitely missing next match
-- "doubt" = possible injury, knock, illness, or uncertain
-- "available" = no issues mentioned or old news only`
+Rules — be CONSERVATIVE, err on the side of caution:
+- "available" = ONLY if there is POSITIVE evidence: training normally, named in squad, returned from injury, suspension served. If no clear positive signal → use "doubt"
+- "doubt" = any injury mention, fitness concern, illness, missed training, suspension risk, uncertain recovery, or simply no clear positive confirmation
+- "out" = confirmed absence, suspended, definitely missing next match
+- If in doubt → use "doubt", never assume "available" without positive evidence`
         }]
       })
     });
