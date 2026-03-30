@@ -1,4 +1,4 @@
-// api/news.js — Google News RSS mejorado para Premier + otras ligas
+// api/news.js — Google News RSS + availability analysis
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,7 +25,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // Deduplicar y ordenar
     const deduped = dedupeByTitle(allItems)
       .sort((a, b) => minutesSince(a.pubDate) - minutesSince(b.pubDate))
       .slice(0, 60);
@@ -41,7 +40,9 @@ export default async function handler(req, res) {
       minutesAgo: minutesSince(item.pubDate)
     }));
 
-    return res.status(200).json({ player: name, team: team || null, news });
+    const availability = await analyzeAvailability(news.slice(0, 10), name, league);
+
+    return res.status(200).json({ player: name, team: team || null, news, availability });
 
   } catch (e) {
     console.error('api/news error:', e);
@@ -49,8 +50,66 @@ export default async function handler(req, res) {
   }
 }
 
+async function analyzeAvailability(recentNews, playerName, league) {
+  if (!recentNews.length) return { status: 'available', reason: null };
+
+  const langMap = {
+    AR: 'español', UY: 'español', CL: 'español', CO: 'español', MX: 'español',
+    BR: 'português', ES: 'español', GB: 'English', IT: 'italiano',
+    DE: 'Deutsch', FR: 'français', PT: 'português', NL: 'Nederlands', TR: 'Türkçe'
+  };
+  const lang = langMap[league] || 'English';
+
+  const headlines = recentNews
+    .filter(n => n.minutesAgo < 10080)
+    .map(n => `- ${n.title}`)
+    .join('\n');
+
+  if (!headlines) return { status: 'available', reason: null };
+
+  try {
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) return { status: 'available', reason: null };
+
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 100,
+        messages: [{
+          role: 'user',
+          content: `Based on these recent news headlines about ${playerName}, is the player available for the next match?
+
+${headlines}
+
+Reply ONLY with valid JSON (no markdown):
+{"status":"available"|"doubt"|"out","reason":"one short sentence in ${lang} explaining why, or null if available"}
+
+Rules:
+- "out" = confirmed injury, suspension or definitely missing next match
+- "doubt" = possible injury, knock, illness, or uncertain
+- "available" = no issues mentioned or old news only`
+        }]
+      })
+    });
+
+    const d = await r.json();
+    const text = d.content?.[0]?.text || '{}';
+    const clean = text.replace(/```json\n?/gi, '').replace(/```\n?/gi, '').trim();
+    const parsed = JSON.parse(clean);
+    if (!['available','doubt','out'].includes(parsed.status)) return { status: 'available', reason: null };
+    return parsed;
+  } catch(e) {
+    return { status: 'available', reason: null };
+  }
+}
+
 function detectLocale(team, league) {
-  // Si viene la liga explícita del usuario, usarla directamente
   const localeMap = {
     AR: { hl:'es-AR', gl:'AR', lang:'es' },
     UY: { hl:'es-419', gl:'UY', lang:'es' },
@@ -72,17 +131,16 @@ function detectLocale(team, league) {
 
   if (league && localeMap[league]) return localeMap[league];
 
-  // Fallback: detectar por nombre de equipo
   const t = (team || '').toLowerCase();
   if (['boca','river','racing','independiente','san lorenzo','talleres','belgrano','central','newell','godoy','tigre','huracán','vélez','estudiantes','lanús','banfield'].some(x=>t.includes(x))) return localeMap.AR;
   if (['madrid','barcelona','atletico','sevilla','valencia','villarreal','betis','athletic','sociedad','getafe','osasuna','girona'].some(x=>t.includes(x))) return localeMap.ES;
-  if (['arsenal','chelsea','liverpool','city','united','tottenham','newcastle','west ham','aston villa','brighton','fulham','brentford','everton','nottingham','bournemouth','wolves','leicester'].some(x=>t.includes(x))) return localeMap.GB;
+  if (['arsenal','chelsea','liverpool','city','united','tottenham','newcastle','west ham','aston villa','brighton','fulham','brentford','everton','nottingham','bournemouth','wolves','leicester','sunderland'].some(x=>t.includes(x))) return localeMap.GB;
   if (['juventus','inter','milan','napoli','roma','lazio','fiorentina','atalanta','torino','bologna'].some(x=>t.includes(x))) return localeMap.IT;
   if (['paris','psg','marseille','lyon','monaco','lille','rennes','nice','lens'].some(x=>t.includes(x))) return localeMap.FR;
   if (['bayern','dortmund','leverkusen','frankfurt','leipzig','wolfsburg'].some(x=>t.includes(x))) return localeMap.DE;
   if (['flamengo','palmeiras','corinthians','santos','são paulo','atletico mineiro','internacional','gremio','fluminense'].some(x=>t.includes(x))) return localeMap.BR;
 
-  return localeMap.US; // default inglés
+  return localeMap.US;
 }
 
 function getCompetitionName(league) {
@@ -112,9 +170,6 @@ function buildQueries(name, team, league) {
   const teamStr = team ? ` "${team}"` : '';
   const sport = ['AR','UY','CL','CO','MX','BR','ES','IT','FR','PT'].includes(league) ? 'fútbol' : 'football';
   const competition = getCompetitionName(league);
-
-  // Con equipo: busca nombre + equipo (más preciso)
-  // Sin equipo: busca nombre + competición como contexto
   const context = teamStr || ` "${competition}"`;
 
   return [
