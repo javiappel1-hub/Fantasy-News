@@ -468,7 +468,7 @@ async function doExtract(){
     showNormalization();
     toast(`✅ ${S.players.length} jugadores detectados`,'ok');
   }catch(e){toast(`⚠️ ${e.message}`,'err');status('ERROR');}
-  finally{btn.disabled=false;btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Extraer con IA`;}
+  finally{btn.disabled=false;btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Extraer equipo nuevo con IA`;}
 }
 
 function loadDemo(){
