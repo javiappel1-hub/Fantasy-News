@@ -645,62 +645,46 @@ function buildPlayerQueries(name='', team=''){
 
   const norm = normalizeText(raw);
   const tokens = norm.split(' ').filter(Boolean);
-
-  const teamNorm = normalizeText(team || '');
-  const teamTokens = teamNorm.split(' ').filter(Boolean);
+  const teamExpanded = expandTeamHint(team);
+  const teamNorm = normalizeText(teamExpanded || '');
 
   const queries = [];
-  const push = q=>{
-    const v=(q||'').trim();
-    if(v && !queries.includes(v)) queries.push(v);
-  };
+  const push = q => { const v=(q||'').trim(); if(v && !queries.includes(v)) queries.push(v); };
 
-  // base nombre
   push(raw);
   push(norm);
 
-  // nombre completo y variantes
   if(tokens.length >= 2){
     push(tokens.join(' '));
     push(tokens.slice(0,2).join(' '));
     push(tokens.slice(-2).join(' '));
+    if(tokens.length >= 1) push(tokens[tokens.length-1]);
+    if(tokens.length >= 1) push(tokens[0]);
   }
 
-  if(tokens.length >= 1){
+  // CLAVE: para nombres de un solo token como "André", "Larsen", "Timber"
+  if(tokens.length === 1){
     push(tokens[0]);
-    push(tokens[tokens.length-1]);
+    // buscar con equipo pegado — mejora mucho la precisión
+    if(teamNorm) push(`${tokens[0]} ${teamNorm}`);
+    // variante sin tilde — TheSportsDB a veces no tiene tildes
+    const sinTilde = tokens[0].replace(/[áàä]/g,'a').replace(/[éèë]/g,'e')
+      .replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u');
+    if(sinTilde !== tokens[0]) push(sinTilde);
+    if(teamNorm && sinTilde !== tokens[0]) push(`${sinTilde} ${teamNorm}`);
   }
 
-  // meter el equipo fuerte en la query
+  // siempre agregar queries con equipo
   if(teamNorm){
     push(`${norm} ${teamNorm}`);
-    push(`${teamNorm} ${norm}`);
-
-    if(tokens.length >= 2){
-      push(`${tokens[0]} ${tokens[1]} ${teamNorm}`);
-      push(`${tokens[tokens.length-2]} ${tokens[tokens.length-1]} ${teamNorm}`);
-    }
-
-    if(tokens.length >= 1){
-      push(`${tokens[0]} ${teamNorm}`);
-      push(`${tokens[tokens.length-1]} ${teamNorm}`);
-    }
-
-    // si el club tiene varias palabras, también probar versiones parciales
-    if(teamTokens.length >= 2){
-      push(`${norm} ${teamTokens[0]}`);
-      push(`${norm} ${teamTokens[teamTokens.length-1]}`);
-      push(`${tokens[0] || ''} ${teamTokens[0]}`.trim());
-      push(`${tokens[tokens.length-1] || ''} ${teamTokens[0]}`.trim());
-    }
-
-    // fallback por equipo solo
+    if(tokens.length >= 1) push(`${tokens[0]} ${teamNorm}`);
+    if(tokens.length >= 2) push(`${tokens[tokens.length-1]} ${teamNorm}`);
     push(teamNorm);
   }
 
-  return queries.filter(q=>q.length>=2).slice(0,12);
+  return queries.filter(q => q.length >= 2).slice(0, 14);
 }
-
+  
 function scoreCandidate(pl, searchName, searchTeam){
   const playerName = normalizeText(pl.strPlayer || '');
   const playerTeam = normalizeText(pl.strTeam || '');
