@@ -61,8 +61,6 @@ header{background:var(--navy);padding:0 24px;display:flex;align-items:center;jus
 .row-info{flex:1;min-width:0}
 .row-name{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
 .row-team{font-size:10px;color:var(--muted);margin-top:1px}
-.news-cnt{font-family:var(--fm);font-size:9px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:1px 6px;border-radius:4px;flex-shrink:0;font-weight:600}
-.news-cnt.has{background:var(--accent-light);border-color:rgba(0,102,255,.25);color:var(--accent)}
 .avail-badge{font-family:var(--fm);font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;flex-shrink:0;white-space:nowrap}
 .avail-badge.av{background:#e8f9f2;border:1px solid #b8e8d4;color:#007a50}
 .avail-badge.db{background:#fff3e0;border:1px solid #ffd8a8;color:#b85000}
@@ -137,7 +135,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .norm-footer-action-icon.import{background:var(--accent-light);color:var(--accent)}
 .norm-footer-action-label{font-size:12px;font-weight:600;color:var(--text)}
 .norm-footer-action-sub{font-size:10px;color:var(--muted);margin-top:1px}
-.btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
+.btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
 .btn-norm-confirm:hover{background:var(--accent-dark)}
 .btn-norm-confirm:disabled{opacity:.4;cursor:not-allowed}
 .players-grid-scr{display:none;flex:1;overflow-y:auto;padding:24px 28px}
@@ -290,6 +288,12 @@ main{display:flex;flex-direction:column;overflow:hidden}
   .preview-drawer{width:100%;top:auto;bottom:0;height:75vh;transform:translateY(100%);border-left:none;border-top:1px solid var(--border)}
   .preview-drawer.open{transform:translateY(0)}
 }
+@media(max-width:600px){
+  .norm-footer-bar{flex-direction:column}
+  .norm-footer-info{border-bottom:1px solid var(--border);padding:10px 14px}
+  .norm-footer-actions{border-left:none;border-right:none;border-bottom:1px solid var(--border)}
+  .btn-norm-confirm{width:100%;padding:14px;border-radius:0}
+}
 </style>
 </head>
 <body>
@@ -348,7 +352,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="norm-footer-bar">
       <div class="norm-footer-info"><b id="normDoneN">0</b> de <b id="normTotalN">0</b> jugadores listos</div>
       <div class="norm-footer-actions">
-        <div class="norm-footer-action" onclick="openAddPlayerFromNorm()">
+        <div class="norm-footer-action" onclick="openAddPlayer(true)">
           <div class="norm-footer-action-icon manual">✎</div>
           <div>
             <div class="norm-footer-action-label">Agregar manual</div>
@@ -499,6 +503,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
 const API_BASE=window.location.hostname==='localhost'?'http://localhost:3000':'';
 const S={players:[],images:[],current:null,playerNews:{},playerAvailability:{},filter:'all',teamName:'',userName:'',league:''};
 const DEMO_MODE=false;
+// FIX 6: openAddPlayer unificada con parámetro fromNorm
 let _addPlayerPos='',_addPlayerSeq=0,_addingFromNorm=false;
 
 function saveToStorage(){localStorage.setItem('fn_teamName',S.teamName);localStorage.setItem('fn_userName',S.userName);localStorage.setItem('fn_league',S.league);localStorage.setItem('fn_players',JSON.stringify(S.players));}
@@ -577,6 +582,7 @@ async function extractAndAdd(){
       const maxId=S.players.reduce((m,p)=>Math.max(m,p.id||0),0);
       const newPlayers=d.players.map((p,i)=>({...p,id:maxId+i+1,price:p.price||'—',points:p.points||'—',nameComplete:p.nameComplete!==false,teamConfidence:p.teamConfidence||'high'}));
       S.players=[...S.players,...newPlayers];
+      // FIX 4: saveToStorage antes de normalización
       saveToStorage();
       showNormalizationForNew(newPlayers);
       toast(`✅ ${newPlayers.length} jugadores nuevos detectados`,'ok');
@@ -611,14 +617,15 @@ function loadDemo(){
   showNormalization();
 }
 
-// ── ADD PLAYER MANUAL ─────────────────────────────────────────────────────────
-function openAddPlayer(){
+// ── ADD PLAYER — FIX 6: unificada con parámetro fromNorm ─────────────────────
+function openAddPlayer(fromNorm=false){
   document.getElementById('addPlayerName').value='';
   document.getElementById('addPlayerTeam').value='';
   document.getElementById('addResolveArea').style.display='none';
   document.getElementById('addResolveChips').innerHTML='';
   document.querySelectorAll('.add-pos-btn').forEach(b=>b.classList.remove('sel'));
   _addPlayerPos='';
+  _addingFromNorm=!!fromNorm;
   document.getElementById('addPlayerOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('addPlayerName').focus(),200);
 }
@@ -706,7 +713,7 @@ function addPlayerToSquad(name,team,thumb=''){
   S.players.push(newPlayer);
   closeAddPlayer();
   if(_addingFromNorm){
-    _addingFromNorm=false;
+    // Agregar a normalización activa
     _normTotal++;
     updateNormProgress();
     document.getElementById('normCards').innerHTML+=renderNormCard(newPlayer);
@@ -715,13 +722,15 @@ function addPlayerToSquad(name,team,thumb=''){
     toast(`✅ ${name} agregado — confirmalo abajo`,'ok');
     return;
   }
+  // FIX 1: updateSidebarRow en vez de nc ref muerto
   saveToStorage();renderSidebar();showGrid();
+  // badge loading en sidebar
+  updateSidebarRow(newId);
   fetchNews(newPlayer).then(({news,availability})=>{
     S.playerNews[newId]=news;S.playerAvailability[newId]=availability||{status:'available',reason:null};
-    const nc=document.getElementById(`nc-${newId}`);
-    if(nc){nc.textContent=news.length;if(news.length>0)nc.classList.add('has');}
     updateCard(newId,news.length,S.playerAvailability[newId]);
-  }).catch(()=>{S.playerNews[newId]=[];S.playerAvailability[newId]={status:'available',reason:null};});
+    updateSidebarRow(newId);
+  }).catch(()=>{S.playerNews[newId]=[];S.playerAvailability[newId]={status:'available',reason:null};updateSidebarRow(newId);});
   document.getElementById('gridBadge').textContent=`${S.players.length} jugadores`;
   toast(`✅ ${name} agregado al equipo`,'ok');
 }
@@ -972,15 +981,6 @@ function updateNormProgress(){
   document.getElementById('btnNormConfirm').disabled=_normDone<_normTotal;
 }
 
-function openAddPlayerFromNorm(){
-  document.getElementById('addPlayerName').value='';document.getElementById('addPlayerTeam').value='';
-  document.getElementById('addResolveArea').style.display='none';document.getElementById('addResolveChips').innerHTML='';
-  document.querySelectorAll('.add-pos-btn').forEach(b=>b.classList.remove('sel'));
-  _addPlayerPos='';_addingFromNorm=true;
-  document.getElementById('addPlayerOverlay').classList.add('open');
-  setTimeout(()=>document.getElementById('addPlayerName').focus(),200);
-}
-
 async function addPhotoFromNorm(){
   const input=document.createElement('input');input.type='file';input.accept='image/*';input.multiple=true;
   input.onchange=async e=>{
@@ -992,7 +992,10 @@ async function addPhotoFromNorm(){
       const d=await r.json();if(!r.ok||!d.players?.length)throw new Error('No se detectaron jugadores');
       const maxId=S.players.reduce((m,p)=>Math.max(m,p.id||0),0);
       const newPlayers=d.players.map((p,i)=>({...p,id:maxId+i+1,price:p.price||'—',points:p.points||'—',nameComplete:p.nameComplete!==false,teamConfidence:p.teamConfidence||'high'}));
-      S.players=[...S.players,...newPlayers];_normTotal+=newPlayers.length;updateNormProgress();
+      S.players=[...S.players,...newPlayers];
+      // FIX 4: saveToStorage antes de mostrar normalización
+      saveToStorage();
+      _normTotal+=newPlayers.length;updateNormProgress();
       const posOrder={POR:0,DEF:1,MED:2,DEL:3};
       const sorted=[...newPlayers].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
       document.getElementById('normCards').innerHTML+=sorted.map(p=>renderNormCard(p)).join('');
@@ -1003,7 +1006,15 @@ async function addPhotoFromNorm(){
   };input.click();
 }
 
-function confirmNormalization(){document.getElementById('normScr').style.display='none';saveToStorage();afterLoad();}
+// FIX 5: confirmNormalization llama renderSidebar explícitamente antes de afterLoad
+function confirmNormalization(){
+  document.getElementById('normScr').style.display='none';
+  saveToStorage();
+  renderSidebar();
+  showGrid();
+  toast('Equipo cargado — precargando noticias…','ok');
+  prefetchAll();
+}
 
 // ── GRID & DETAIL ─────────────────────────────────────────────────────────────
 function afterLoad(){renderSidebar();showGrid();toast('Equipo cargado — precargando noticias…','ok');prefetchAll();}
@@ -1013,7 +1024,6 @@ function prefetchAll(){
   S.players.forEach(p=>{
     fetchNews(p).then(({news,availability})=>{
       S.playerNews[p.id]=news;S.playerAvailability[p.id]=availability||{status:'available',reason:null};done++;
-      const nc=document.getElementById(`nc-${p.id}`);if(nc){nc.textContent=news.length;if(news.length>0)nc.classList.add('has');}
       updateCard(p.id,news.length,S.playerAvailability[p.id]);
       updateSidebarRow(p.id);
       if(S.current?.id===p.id){renderDetailFeed(news);updateCounts(news);}
@@ -1022,14 +1032,14 @@ function prefetchAll(){
   });
 }
 
+// FIX 2: updateSidebarRow reemplaza la lógica nc muerta
 function updateSidebarRow(pid){
-  const row=document.getElementById(`row-${pid}`);
-  if(!row)return;
+  const row=document.getElementById(`row-${pid}`);if(!row)return;
   const av=S.playerAvailability[pid];
   const avLabels=availabilityLabels();
   const cls=av?.status==='available'?'av':av?.status==='doubt'?'db':'out';
   const lbl=avLabels[av?.status||'available']||'OK';
-  const existing=row.querySelector('.avail-badge,.news-cnt');
+  const existing=row.querySelector('.avail-badge');
   if(existing)existing.outerHTML=`<span class="avail-badge ${cls}">${esc(lbl)}</span>`;
   else row.insertAdjacentHTML('beforeend',`<span class="avail-badge ${cls}">${esc(lbl)}</span>`);
 }
@@ -1107,6 +1117,7 @@ function renderSidebar(){
   document.getElementById('sidebarPlayers').innerHTML=html;
 }
 
+// FIX 3: showGrid no reconstruye todo si las noticias ya están — preserva badges
 function showGrid(){
   document.getElementById('welcomeScr').style.display='none';document.getElementById('detailScr').classList.remove('visible');
   document.getElementById('normScr').style.display='none';document.getElementById('gridScr').style.display='block';
@@ -1127,7 +1138,7 @@ function showGrid(){
       ${loaded?(news.length>0?`<div class="card-badge">📰 ${news.length}</div>`:`<div class="card-arrow">→</div>`):`<div class="card-loading"></div>`}
     </div>`;
   }).join('')+`<div class="add-split-card">
-    <div class="add-half" onclick="openAddPlayer()">
+    <div class="add-half" onclick="openAddPlayer(false)">
       <div class="add-half-icon manual">✎</div>
       <div class="add-half-label">Agregar manual</div>
       <div class="add-half-sub">Escribí nombre y equipo</div>
@@ -1166,7 +1177,9 @@ async function selectPlayer(pid){
     status('CARGANDO...');
     const{news,availability}=await fetchNews(p).catch(()=>({news:[],availability:{status:'available',reason:null}}));
     S.playerNews[pid]=news;S.playerAvailability[pid]=availability;
-    renderDetailFeed(news);updateCounts(news);status(`${news.length} noticias`);updateCard(pid,news.length,availability);
+    renderDetailFeed(news);updateCounts(news);status(`${news.length} noticias`);
+    updateCard(pid,news.length,availability);
+    updateSidebarRow(pid);
   }
 }
 
