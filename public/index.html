@@ -117,9 +117,18 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .norm-manual input:focus{border-color:var(--accent)}
 .norm-manual-btn{font-size:12px;padding:8px 14px;border-radius:8px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);cursor:pointer;font-family:var(--fn);font-weight:600}
 .norm-manual-btn:hover{border-color:var(--accent);color:var(--accent)}
-.norm-footer-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.norm-footer-info{font-size:12px;color:var(--muted)}
-.norm-footer-info b{color:var(--text)}
+.norm-footer-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;display:flex;align-items:stretch;overflow:hidden;gap:0}
+.norm-footer-info{display:flex;align-items:center;padding:14px 18px;font-size:12px;color:var(--muted);white-space:nowrap}
+.norm-footer-info b{color:var(--text);font-weight:600}
+.norm-footer-actions{display:flex;align-items:stretch;flex:1;border-left:1px solid var(--border);border-right:1px solid var(--border)}
+.norm-footer-sep{width:1px;background:var(--border);flex-shrink:0}
+.norm-footer-action{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;transition:background .12s;flex:1}
+.norm-footer-action:hover{background:var(--surface2)}
+.norm-footer-action-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.norm-footer-action-icon.manual{background:#e8f9f2;color:#007a50}
+.norm-footer-action-icon.import{background:var(--accent-light);color:var(--accent)}
+.norm-footer-action-label{font-size:12px;font-weight:600;color:var(--text)}
+.norm-footer-action-sub{font-size:10px;color:var(--muted);margin-top:1px}
 .btn-norm-confirm{background:var(--accent);color:#fff;border:none;padding:10px 24px;font-family:var(--fn);font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;transition:all .15s}
 .btn-norm-confirm:hover{background:var(--accent-dark)}
 .btn-norm-confirm:disabled{opacity:.4;cursor:not-allowed}
@@ -155,7 +164,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .card-loading{position:absolute;bottom:12px;right:12px;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 .card-arrow{position:absolute;bottom:12px;right:12px;font-size:14px;color:var(--muted2);transition:all .15s}
 .player-card:hover .card-arrow{color:var(--accent);transform:translateX(3px)}
-/* ADD PLAYER SPLIT CARD */
+/* ADD SPLIT CARD */
 .add-split-card{border:1.5px dashed var(--border2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:160px;background:var(--surface)}
 .add-half{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:14px;transition:all .15s;text-align:center;cursor:pointer}
 .add-half:hover{background:var(--surface2)}
@@ -166,10 +175,10 @@ main{display:flex;flex-direction:column;overflow:hidden}
 .add-half-label{font-size:11px;font-weight:600;color:var(--text)}
 .add-half-sub{font-size:9px;color:var(--muted);line-height:1.4}
 /* ADD PLAYER MODAL */
-.add-modal{background:var(--surface);border-radius:16px;padding:28px;width:420px;max-width:92vw;box-shadow:0 24px 60px rgba(0,0,0,.15);transform:translateY(12px);transition:transform .2s;max-height:90vh;overflow-y:auto}
+.add-modal{background:var(--surface);border-radius:16px;padding:28px;width:440px;max-width:92vw;box-shadow:0 24px 60px rgba(0,0,0,.15);transform:translateY(12px);transition:transform .2s;max-height:90vh;overflow-y:auto}
 .modal-overlay.open .add-modal{transform:translateY(0)}
 .add-modal-title{font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px}
-.add-modal-sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+.add-modal-sub{font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5}
 .add-pos-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px}
 .add-pos-btn{font-size:11px;padding:7px 0;border-radius:8px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--muted);cursor:pointer;text-align:center;font-weight:600;transition:all .12s;font-family:var(--fm)}
 .add-pos-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -333,6 +342,25 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <div class="norm-cards" id="normCards"></div>
     <div class="norm-footer-bar">
       <div class="norm-footer-info"><b id="normDoneN">0</b> de <b id="normTotalN">0</b> jugadores listos</div>
+      <div class="norm-footer-actions">
+        <div class="norm-footer-action" onclick="openAddPlayerFromNorm()">
+          <div class="norm-footer-action-icon manual">✎</div>
+          <div>
+            <div class="norm-footer-action-label">Agregar manual</div>
+            <div class="norm-footer-action-sub">Nombre y equipo</div>
+          </div>
+        </div>
+        <div class="norm-footer-sep"></div>
+        <div class="norm-footer-action" onclick="addPhotoFromNorm()">
+          <div class="norm-footer-action-icon import">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <div>
+            <div class="norm-footer-action-label">Agregar foto</div>
+            <div class="norm-footer-action-sub">Subí otra captura</div>
+          </div>
+        </div>
+      </div>
       <button class="btn-norm-confirm" id="btnNormConfirm" onclick="confirmNormalization()" disabled>Buscar noticias →</button>
     </div>
   </div>
@@ -431,14 +459,14 @@ main{display:flex;flex-direction:column;overflow:hidden}
     <span class="modal-skip" onclick="skipTeamName()">Continuar sin guardar</span>
   </div>
 </div>
-<!-- MODAL AGREGAR JUGADOR MANUAL -->
+<!-- MODAL AGREGAR JUGADOR -->
 <div class="modal-overlay" id="addPlayerOverlay">
   <div class="add-modal">
     <div class="add-modal-title">Agregar jugador</div>
-    <div class="add-modal-sub">Buscamos el jugador en la base de datos automáticamente.</div>
+    <div class="add-modal-sub">Buscamos el jugador automáticamente. Si no lo encontramos te mostramos el plantel completo del equipo.</div>
     <div class="modal-field">
       <div class="modal-label">Nombre</div>
-      <input class="modal-input" id="addPlayerName" placeholder="ej: Matty Cash" autocomplete="off" oninput="onAddPlayerName()">
+      <input class="modal-input" id="addPlayerName" placeholder="ej: Matty Cash" autocomplete="off">
     </div>
     <div class="modal-field">
       <div class="modal-label">Equipo</div>
@@ -454,7 +482,7 @@ main{display:flex;flex-direction:column;overflow:hidden}
       </div>
     </div>
     <div class="add-resolve" id="addResolveArea" style="display:none">
-      <div class="add-resolve-label" id="addResolveLabel">¿Cuál es tu jugador?</div>
+      <div class="add-resolve-label" id="addResolveLabel">Buscando...</div>
       <div class="norm-player-chips" id="addResolveChips"></div>
     </div>
     <div class="add-modal-actions">
@@ -470,6 +498,7 @@ const S={players:[],images:[],current:null,playerNews:{},playerAvailability:{},f
 const DEMO_MODE=false;
 let _addPlayerPos='';
 let _addPlayerSeq=0;
+let _addingFromNorm=false;
 
 function saveToStorage(){localStorage.setItem('fn_teamName',S.teamName);localStorage.setItem('fn_userName',S.userName);localStorage.setItem('fn_league',S.league);localStorage.setItem('fn_players',JSON.stringify(S.players));}
 function loadFromStorage(){S.teamName=localStorage.getItem('fn_teamName')||'';S.userName=localStorage.getItem('fn_userName')||'';S.league=localStorage.getItem('fn_league')||'';const s=localStorage.getItem('fn_players');if(s){try{S.players=JSON.parse(s);}catch(e){}}}
@@ -524,7 +553,7 @@ async function doExtract(){
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||`Error ${r.status}`);
     if(!d.players?.length)throw new Error('No se detectaron jugadores en la imagen');
-    S.players=d.players.map((p,i)=>({...p,id:Date.now()+i,price:p.price||'—',points:p.points||'—',nameComplete:p.nameComplete!==false,teamConfidence:p.teamConfidence||'high'}));
+    S.players=d.players.map((p,i)=>({...p,id:i+1,price:p.price||'—',points:p.points||'—',nameComplete:p.nameComplete!==false,teamConfidence:p.teamConfidence||'high'}));
     S.playerNews={};S.playerAvailability={};
     showNormalization();
     toast(`✅ ${S.players.length} jugadores detectados`,'ok');
@@ -532,7 +561,7 @@ async function doExtract(){
   finally{btn.disabled=false;btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Extraer equipo nuevo con IA`;}
 }
 
-// Importar capturas adicionales (agrega jugadores al equipo existente)
+// Importar capturas adicionales al equipo existente
 async function extractAndAdd(){
   const input=document.createElement('input');
   input.type='file';input.accept='image/*';input.multiple=true;
@@ -547,7 +576,6 @@ async function extractAndAdd(){
       if(!r.ok||!d.players?.length)throw new Error('No se detectaron jugadores');
       const maxId=S.players.reduce((m,p)=>Math.max(m,p.id||0),0);
       const newPlayers=d.players.map((p,i)=>({...p,id:maxId+i+1,price:p.price||'—',points:p.points||'—',nameComplete:p.nameComplete!==false,teamConfidence:p.teamConfidence||'high'}));
-      // Normalizar nuevos jugadores antes de agregar
       S.players=[...S.players,...newPlayers];
       saveToStorage();
       showNormalizationForNew(newPlayers);
@@ -557,7 +585,6 @@ async function extractAndAdd(){
   input.click();
 }
 
-// Normalización solo para jugadores nuevos
 async function showNormalizationForNew(newPlayers){
   document.getElementById('gridScr').style.display='none';
   document.getElementById('detailScr').classList.remove('visible');
@@ -595,29 +622,22 @@ function openAddPlayer(){
   document.getElementById('addPlayerOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('addPlayerName').focus(),200);
 }
-function closeAddPlayer(){document.getElementById('addPlayerOverlay').classList.remove('open');}
+function closeAddPlayer(){_addingFromNorm=false;document.getElementById('addPlayerOverlay').classList.remove('open');}
 function selAddPos(el,pos){document.querySelectorAll('.add-pos-btn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');_addPlayerPos=pos;}
-function onAddPlayerName(){
-  // Reset resolve area when name changes
-  document.getElementById('addResolveArea').style.display='none';
-}
 
 async function searchAddPlayer(){
   const name=document.getElementById('addPlayerName').value.trim();
   const team=document.getElementById('addPlayerTeam').value.trim();
   if(!name||name.length<2){toast('⚠️ Escribí el nombre del jugador','err');return;}
   if(!_addPlayerPos){toast('⚠️ Elegí la posición','err');return;}
-
   const resolveArea=document.getElementById('addResolveArea');
   const resolveLabel=document.getElementById('addResolveLabel');
   const resolveChips=document.getElementById('addResolveChips');
   resolveArea.style.display='block';
   resolveLabel.textContent='Buscando...';
   resolveChips.innerHTML=`<span style="font-size:11px;color:var(--muted)">Buscando en base de datos...</span>`;
-
   const seq=++_addPlayerSeq;
   const queries=buildPlayerQueries(name,team);
-
   try{
     let all=[];
     for(const q of queries){
@@ -628,14 +648,13 @@ async function searchAddPlayer(){
       all.push(...batch);
       if(all.length>=20)break;
     }
-
     // Fallback ESPN si no hay resultados
     if(all.length<1&&team){
       resolveLabel.textContent='Buscando en plantel del equipo...';
       const espnPlayers=await fetchSquadFallback(team);
       if(espnPlayers.length){
         const sorted=espnPlayers.sort((a,b)=>a.name.localeCompare(b.name));
-        resolveLabel.textContent=`${sorted.length} jugadores del plantel de ${team}`;
+        resolveLabel.textContent=`${sorted.length} jugadores del plantel de ${team} — elegí el correcto`;
         resolveChips.innerHTML=sorted.map(pl=>`
           <div class="norm-pchip" data-name="${esc(pl.name)}" data-team="${esc(team)}" data-thumb="" onclick="confirmAddFromChip(this)">
             <div class="norm-pchip-thumb">${esc((pl.name||'').split(' ').map(w=>w[0]).join('').substring(0,2))}</div>
@@ -643,21 +662,19 @@ async function searchAddPlayer(){
           </div>`).join('');
         return;
       }
-    }
-
-    if(!all.length){
-      resolveLabel.textContent='Sin resultados — podés confirmar manualmente con el botón de arriba';
-      resolveChips.innerHTML=`<span style="font-size:11px;color:var(--muted)">No encontramos resultados. Completá nombre y equipo arriba y buscá de nuevo, o confirmá manualmente.</span>`;
-      // Show manual confirm button
-      resolveChips.innerHTML+=`<button onclick="confirmAddManual()" style="margin-top:8px;background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Confirmar manualmente</button>`;
+      resolveLabel.textContent='Sin resultados — confirmá manualmente';
+      resolveChips.innerHTML=`<button onclick="confirmAddManual()" style="background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px">Confirmar manualmente</button>`;
       return;
     }
-
+    if(!all.length){
+      resolveLabel.textContent='Sin resultados — confirmá manualmente';
+      resolveChips.innerHTML=`<button onclick="confirmAddManual()" style="background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px">Confirmar manualmente</button>`;
+      return;
+    }
     const seen=new Set();
     const results=all.filter(pl=>{const key=`${normalizeText(pl.strPlayer||'')}-${normalizeText(pl.strTeam||'')}`;if(seen.has(key))return false;seen.add(key);return true;})
       .map(pl=>({...pl,_score:scoreCandidate(pl,name,team)}))
       .sort((a,b)=>b._score-a._score).slice(0,6);
-
     resolveLabel.textContent=`${results.length} resultado${results.length>1?'s':''} encontrado${results.length>1?'s':''} — elegí el correcto`;
     resolveChips.innerHTML=results.map(pl=>`
       <div class="norm-pchip" data-name="${esc(pl.strPlayer)}" data-team="${esc(pl.strTeam)}" data-thumb="${esc(pl.strThumb||'')}" onclick="confirmAddFromChip(this)">
@@ -672,9 +689,7 @@ async function searchAddPlayer(){
 }
 
 function confirmAddFromChip(el){
-  const name=el.dataset.name;
-  const team=el.dataset.team;
-  const thumb=el.dataset.thumb;
+  const name=el.dataset.name,team=el.dataset.team,thumb=el.dataset.thumb;
   el.closest('.norm-player-chips').querySelectorAll('.norm-pchip').forEach(c=>c.classList.remove('sel'));
   el.classList.add('sel');
   setTimeout(()=>addPlayerToSquad(name,team,thumb),250);
@@ -684,19 +699,30 @@ function confirmAddManual(){
   const name=document.getElementById('addPlayerName').value.trim();
   const team=document.getElementById('addPlayerTeam').value.trim();
   if(!name||name.length<2){toast('⚠️ Escribí el nombre completo','err');return;}
-  if(!team){toast('⚠️ Indicá el equipo','err');return;}
-  addPlayerToSquad(name,team,'');
+  addPlayerToSquad(name,team||'—','');
 }
 
 function addPlayerToSquad(name,team,thumb=''){
   const newId=Date.now();
   const newPlayer={id:newId,name,team,position:_addPlayerPos||'DEL',price:'—',points:'—',nameComplete:true,teamConfidence:'high'};
   S.players.push(newPlayer);
-  saveToStorage();
   closeAddPlayer();
+
+  if(_addingFromNorm){
+    _addingFromNorm=false;
+    // Agregar a la pantalla de normalización activa
+    _normTotal++;
+    updateNormProgress();
+    document.getElementById('normCards').innerHTML+=renderNormCard(newPlayer);
+    bindNormInputs(newPlayer.id);
+    resolvePlayer(newPlayer);
+    toast(`✅ ${name} agregado — confirmalo abajo`,'ok');
+    return;
+  }
+
+  saveToStorage();
   renderSidebar();
   showGrid();
-  // Precargar noticias del nuevo jugador
   fetchNews(newPlayer).then(({news,availability})=>{
     S.playerNews[newId]=news;
     S.playerAvailability[newId]=availability||{status:'available',reason:null};
@@ -993,6 +1019,47 @@ function updateNormProgress(){
   document.getElementById('normDoneN').textContent=_normDone;
   document.getElementById('normTotalN').textContent=_normTotal;
   document.getElementById('btnNormConfirm').disabled=_normDone<_normTotal;
+}
+
+function openAddPlayerFromNorm(){
+  // Abre el modal de agregar manual, y al confirmar agrega el jugador a la lista de normalización
+  document.getElementById('addPlayerName').value='';
+  document.getElementById('addPlayerTeam').value='';
+  document.getElementById('addResolveArea').style.display='none';
+  document.getElementById('addResolveChips').innerHTML='';
+  document.querySelectorAll('.add-pos-btn').forEach(b=>b.classList.remove('sel'));
+  _addPlayerPos='';
+  _addingFromNorm=true;
+  document.getElementById('addPlayerOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('addPlayerName').focus(),200);
+}
+
+async function addPhotoFromNorm(){
+  const input=document.createElement('input');
+  input.type='file';input.accept='image/*';input.multiple=true;
+  input.onchange=async e=>{
+    const files=Array.from(e.target.files||[]);
+    if(!files.length)return;
+    toast('Analizando captura...','ok');status('ANALIZANDO...');
+    try{
+      const imgs=await Promise.all(files.map(f=>new Promise(res=>{const r=new FileReader();r.onload=ev=>res({data:ev.target.result.split(',')[1],mediaType:f.type||'image/jpeg'});r.readAsDataURL(f);})));
+      const r=await fetch(`${API_BASE}/api/extract`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({images:imgs})});
+      const d=await r.json();
+      if(!r.ok||!d.players?.length)throw new Error('No se detectaron jugadores');
+      const maxId=S.players.reduce((m,p)=>Math.max(m,p.id||0),0);
+      const newPlayers=d.players.map((p,i)=>({...p,id:maxId+i+1,price:p.price||'—',points:p.points||'—',nameComplete:p.nameComplete!==false,teamConfidence:p.teamConfidence||'high'}));
+      S.players=[...S.players,...newPlayers];
+      _normTotal+=newPlayers.length;
+      updateNormProgress();
+      const posOrder={POR:0,DEF:1,MED:2,DEL:3};
+      const sorted=[...newPlayers].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
+      document.getElementById('normCards').innerHTML+=sorted.map(p=>renderNormCard(p)).join('');
+      sorted.forEach(p=>{bindNormInputs(p.id);resolvePlayer(p);});
+      toast(`✅ ${newPlayers.length} jugadores nuevos agregados`,'ok');
+    }catch(e){toast(`⚠️ ${e.message}`,'err');}
+    status('CONFIRMÁ TU EQUIPO');
+  };
+  input.click();
 }
 
 function confirmNormalization(){
