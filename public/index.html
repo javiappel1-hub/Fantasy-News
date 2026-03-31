@@ -63,6 +63,12 @@ header{background:var(--navy);padding:0 24px;display:flex;align-items:center;jus
 .row-team{font-size:10px;color:var(--muted);margin-top:1px}
 .news-cnt{font-family:var(--fm);font-size:9px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:1px 6px;border-radius:4px;flex-shrink:0;font-weight:600}
 .news-cnt.has{background:var(--accent-light);border-color:rgba(0,102,255,.25);color:var(--accent)}
+.avail-badge{font-family:var(--fm);font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+.avail-badge.av{background:#e8f9f2;border:1px solid #b8e8d4;color:#007a50}
+.avail-badge.db{background:#fff3e0;border:1px solid #ffd8a8;color:#b85000}
+.avail-badge.out{background:#fff0f0;border:1px solid #ffb8b8;color:#c00020}
+.avail-badge.loading{background:var(--surface2);border:1px solid var(--border);color:var(--muted2);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .empty-sidebar{padding:28px 14px;text-align:center;color:var(--muted);font-size:11px;line-height:1.7}
 main{display:flex;flex-direction:column;overflow:hidden}
 .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 40px;text-align:center;gap:14px}
@@ -1009,10 +1015,23 @@ function prefetchAll(){
       S.playerNews[p.id]=news;S.playerAvailability[p.id]=availability||{status:'available',reason:null};done++;
       const nc=document.getElementById(`nc-${p.id}`);if(nc){nc.textContent=news.length;if(news.length>0)nc.classList.add('has');}
       updateCard(p.id,news.length,S.playerAvailability[p.id]);
+      updateSidebarRow(p.id);
       if(S.current?.id===p.id){renderDetailFeed(news);updateCounts(news);}
       updateGridSub(done);
-    }).catch(()=>{S.playerNews[p.id]=[];S.playerAvailability[p.id]={status:'available',reason:null};done++;updateGridSub(done);});
+    }).catch(()=>{S.playerNews[p.id]=[];S.playerAvailability[p.id]={status:'available',reason:null};done++;updateSidebarRow(p.id);updateGridSub(done);});
   });
+}
+
+function updateSidebarRow(pid){
+  const row=document.getElementById(`row-${pid}`);
+  if(!row)return;
+  const av=S.playerAvailability[pid];
+  const avLabels=availabilityLabels();
+  const cls=av?.status==='available'?'av':av?.status==='doubt'?'db':'out';
+  const lbl=avLabels[av?.status||'available']||'OK';
+  const existing=row.querySelector('.avail-badge,.news-cnt');
+  if(existing)existing.outerHTML=`<span class="avail-badge ${cls}">${esc(lbl)}</span>`;
+  else row.insertAdjacentHTML('beforeend',`<span class="avail-badge ${cls}">${esc(lbl)}</span>`);
 }
 
 function updateGridSub(done){
@@ -1042,15 +1061,48 @@ function availabilityHTML(av){
   return`<div class="card-avail ${c.cls}"><span class="card-avail-dot"></span>${c.label}</div>${av.reason?`<div class="card-avail-reason">${esc(av.reason)}</div>`:''}`;
 }
 
+function availabilityLabels(){
+  const map={
+    GB:{available:'OK',doubt:'Doubt',out:'Out'},
+    US:{available:'OK',doubt:'Doubt',out:'Out'},
+    AR:{available:'OK',doubt:'Duda',out:'Baja'},
+    UY:{available:'OK',doubt:'Duda',out:'Baja'},
+    CL:{available:'OK',doubt:'Duda',out:'Baja'},
+    CO:{available:'OK',doubt:'Duda',out:'Baja'},
+    MX:{available:'OK',doubt:'Duda',out:'Baja'},
+    ES:{available:'OK',doubt:'Duda',out:'Baja'},
+    BR:{available:'OK',doubt:'Dúvida',out:'Baixa'},
+    PT:{available:'OK',doubt:'Dúvida',out:'Baixa'},
+    IT:{available:'OK',doubt:'Dubbio',out:'Fuori'},
+    DE:{available:'OK',doubt:'Fraglich',out:'Aus'},
+    FR:{available:'OK',doubt:'Doute',out:'Absent'},
+    NL:{available:'OK',doubt:'Twijfel',out:'Uit'},
+    TR:{available:'OK',doubt:'Şüpheli',out:'Dışarı'},
+  };
+  return map[S.league]||map.GB;
+}
+
 function renderSidebar(){
   const posOrder={POR:0,DEF:1,MED:2,DEL:3};const sorted=[...S.players].sort((a,b)=>(posOrder[a.position]||0)-(posOrder[b.position]||0));
   const groups={POR:[],DEF:[],MED:[],DEL:[]};sorted.forEach(p=>(groups[p.position]||[]).push(p));
   const labels={POR:'Porteros',DEF:'Defensas',MED:'Centrocampistas',DEL:'Delanteros'};
+  const avLabels=availabilityLabels();
   let html='';
   ['POR','DEF','MED','DEL'].forEach(pos=>{
     if(!groups[pos].length)return;
     html+=`<div class="sidebar-group-label">${labels[pos]}</div>`;
-    groups[pos].forEach(p=>{html+=`<div class="player-row" id="row-${p.id}" onclick="selectPlayer(${p.id})"><div class="pos-badge pos-${p.position}">${esc(p.position)}</div><div class="row-info"><div class="row-name">${esc(p.name)}</div><div class="row-team">${esc(p.team||'')}</div></div><div class="news-cnt" id="nc-${p.id}">…</div></div>`;});
+    groups[pos].forEach(p=>{
+      const av=S.playerAvailability[p.id];
+      const loaded=S.playerNews[p.id]!==undefined;
+      let badge='';
+      if(!loaded){badge=`<span class="avail-badge loading">···</span>`;}
+      else if(av){
+        const cls=av.status==='available'?'av':av.status==='doubt'?'db':'out';
+        const lbl=avLabels[av.status]||avLabels.available;
+        badge=`<span class="avail-badge ${cls}">${esc(lbl)}</span>`;
+      }
+      html+=`<div class="player-row" id="row-${p.id}" onclick="selectPlayer(${p.id})"><div class="pos-badge pos-${p.position}">${esc(p.position)}</div><div class="row-info"><div class="row-name">${esc(p.name)}</div><div class="row-team">${esc(p.team||'')}</div></div>${badge}</div>`;
+    });
   });
   document.getElementById('sidebarPlayers').innerHTML=html;
 }
