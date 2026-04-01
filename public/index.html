@@ -443,6 +443,10 @@ main{display:flex;flex-direction:column;overflow:hidden}
       <input class="modal-input" id="inputUserName" placeholder="ej: Javier" maxlength="20">
     </div>
     <div class="modal-field">
+      <div class="modal-label">Email para resumen diario (opcional)</div>
+      <input class="modal-input" id="inputUserEmail" placeholder="ej: javier@gmail.com" type="email" maxlength="80">
+    </div>
+    <div class="modal-field">
       <div class="modal-label">Liga</div>
       <div class="league-grid" id="leagueGrid">
         <div class="league-opt" data-league="AR" onclick="selectLeague(this)">🇦🇷<span>Argentina</span></div>
@@ -501,19 +505,20 @@ main{display:flex;flex-direction:column;overflow:hidden}
 <div class="toast" id="toast"></div>
 <script>
 const API_BASE=window.location.hostname==='localhost'?'http://localhost:3000':'';
-const S={players:[],images:[],current:null,playerNews:{},playerAvailability:{},filter:'all',teamName:'',userName:'',league:''};
+const S={players:[],images:[],current:null,playerNews:{},playerAvailability:{},filter:'all',teamName:'',userName:'',userEmail:'',league:''};
 const DEMO_MODE=false;
 // FIX 6: openAddPlayer unificada con parámetro fromNorm
 let _addPlayerPos='',_addPlayerSeq=0,_addingFromNorm=false;
 
-function saveToStorage(){localStorage.setItem('fn_teamName',S.teamName);localStorage.setItem('fn_userName',S.userName);localStorage.setItem('fn_league',S.league);localStorage.setItem('fn_players',JSON.stringify(S.players));}
-function loadFromStorage(){S.teamName=localStorage.getItem('fn_teamName')||'';S.userName=localStorage.getItem('fn_userName')||'';S.league=localStorage.getItem('fn_league')||'';const s=localStorage.getItem('fn_players');if(s){try{S.players=JSON.parse(s);}catch(e){}}}
-function clearStorage(){['fn_teamName','fn_userName','fn_league','fn_players'].forEach(k=>localStorage.removeItem(k));}
+function saveToStorage(){localStorage.setItem('fn_teamName',S.teamName);localStorage.setItem('fn_userName',S.userName);localStorage.setItem('fn_userEmail',S.userEmail);localStorage.setItem('fn_league',S.league);localStorage.setItem('fn_players',JSON.stringify(S.players));}
+function loadFromStorage(){S.teamName=localStorage.getItem('fn_teamName')||'';S.userName=localStorage.getItem('fn_userName')||'';S.userEmail=localStorage.getItem('fn_userEmail')||'';S.league=localStorage.getItem('fn_league')||'';const s=localStorage.getItem('fn_players');if(s){try{S.players=JSON.parse(s);}catch(e){}}}
+function clearStorage(){['fn_teamName','fn_userName','fn_userEmail','fn_league','fn_players'].forEach(k=>localStorage.removeItem(k));}
 
 let _pendingExtract=false;
 function openModal(){
   if(S.teamName)document.getElementById('inputTeamName').value=S.teamName;
   if(S.userName)document.getElementById('inputUserName').value=S.userName;
+  if(S.userEmail)document.getElementById('inputUserEmail').value=S.userEmail;
   if(S.league){const el=document.querySelector(`.league-opt[data-league="${S.league}"]`);if(el)el.classList.add('selected');}
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('inputTeamName').focus(),200);
@@ -523,9 +528,10 @@ function selectLeague(el){document.querySelectorAll('.league-opt').forEach(o=>o.
 function saveTeamName(){
   const tn=document.getElementById('inputTeamName').value.trim();
   const un=document.getElementById('inputUserName').value.trim();
+  const ue=document.getElementById('inputUserEmail').value.trim();
   if(!tn){document.getElementById('inputTeamName').focus();return;}
   if(!S.league){toast('⚠️ Elegí tu liga','err');return;}
-  S.teamName=tn;S.userName=un;saveToStorage();logToSheets(true);closeModal();
+  S.teamName=tn;S.userName=un;S.userEmail=ue;saveToStorage();logToSheets(true);closeModal();
   if(_pendingExtract){_pendingExtract=false;doExtract();}
   updateGreeting();
 }
@@ -533,7 +539,17 @@ function skipTeamName(){S.teamName=S.teamName||'Mi equipo';closeModal();if(_pend
 function updateGreeting(){const t=document.getElementById('pgridTitle');if(t)t.textContent=S.teamName||'Tu equipo';const g=document.getElementById('headerGreet');if(g&&S.userName)g.textContent=`Hola, ${S.userName}`;}
 
 function logToSheets(isNew=false){
-  try{fetch(`${API_BASE}/api/log`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({teamName:S.teamName,userName:S.userName,playerCount:S.players.length,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,isNew,players:S.players.map(p=>p.name).join(', ')})}).catch(()=>{});}catch(e){}
+  try{fetch(`${API_BASE}/api/log`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    teamName:S.teamName,
+    userName:S.userName,
+    email:S.userEmail||'',
+    playerCount:S.players.length,
+    timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,
+    league:S.league||'',
+    isNew,
+    players:S.players.map(p=>p.name).join(', '),
+    players_json:JSON.stringify(S.players.map(p=>({name:p.name,team:p.team||'',position:p.position||'DEL'}))),
+  })}).catch(()=>{});}catch(e){}
 }
 
 function openFilePicker(){document.getElementById('fileInput').click();}
@@ -1010,6 +1026,7 @@ async function addPhotoFromNorm(){
 function confirmNormalization(){
   document.getElementById('normScr').style.display='none';
   saveToStorage();
+  logToSheets(false);
   renderSidebar();
   showGrid();
   toast('Equipo cargado — precargando noticias…','ok');
